@@ -1,3 +1,4 @@
+import { MIN_PASSWORD_LENGTH } from 'floman-shared/constants';
 import { useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '@/components/AppText';
@@ -6,7 +7,7 @@ import { Field } from '@/components/Field';
 import { ErrorBanner } from '@/components/FormParts';
 import { spacing, type, useThemed, type Colors } from '@/theme';
 import { resetUserPassword, type AppUser } from '../api';
-import { fullName, MIN_PASSWORD_LENGTH } from '../text';
+import { fullName } from '../text';
 
 /**
  * Reset password, in the web's words: the admin types a temporary password for the user, who signs in with it and

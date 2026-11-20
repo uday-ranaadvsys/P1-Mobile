@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { PERMISSIONS } from 'floman-shared/permissions';
+import { ADMIN_ROLE_NAME, PERMISSIONS } from 'floman-shared/permissions';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '@/components/AppText';
@@ -39,7 +39,7 @@ const GROUPS: { name: string; rows: Row[] }[] = [
       { title: 'My Company', icon: 'storefront-outline', permission: PERMISSIONS.COMPANY.READ, href: '/more/company' },
       { title: 'Users', icon: 'people-outline', permission: PERMISSIONS.USERS.READ, href: '/more/users' },
       { title: 'Roles & Permissions', icon: 'shield-checkmark-outline', permission: PERMISSIONS.ROLES.READ, href: '/more/roles' },
-      { title: 'E-Way Bill', icon: 'car-outline', adminOnly: true },
+      { title: 'E-Way Bill', icon: 'car-outline', adminOnly: true, href: '/more/eway-bill' },
     ],
   },
 ];
@@ -52,7 +52,7 @@ export default function More() {
   const styles = useThemed(makeStyles);
   const [busy, setBusy] = useState(false);
   const name = [user?.firstName, user?.lastName].filter(Boolean).join(' ');
-  const isAdmin = Boolean(user?.roles.includes('Admin'));
+  const isAdmin = Boolean(user?.roles.includes(ADMIN_ROLE_NAME));
   const visible = (r: Row) => (r.adminOnly ? isAdmin : r.permission ? can(r.permission) : true);
 
   return (

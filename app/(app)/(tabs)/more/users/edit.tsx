@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { MIN_PASSWORD_LENGTH } from 'floman-shared/constants';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '@/components/AppText';
@@ -13,7 +14,7 @@ import { ScreenTitle } from '@/components/ScreenTitle';
 import { ErrorText } from '@/components/Text';
 import { useSession } from '@/features/auth/session';
 import { createUser, listDepartments, listRoles, listUsers, updateUser, type UserInput } from '@/features/users/api';
-import { MIN_PASSWORD_LENGTH, roleText } from '@/features/users/text';
+import { roleText } from '@/features/users/text';
 import { useUserAccess } from '@/features/users/useUserAccess';
 import { notify } from '@/lib/notify';
 import { spacing, type, useColors, useThemed, type Colors } from '@/theme';

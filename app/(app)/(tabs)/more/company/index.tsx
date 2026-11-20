@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { DOCUMENT_LOCK_NAME } from 'floman-shared/constants';
 import { gstinStateMismatch } from 'floman-shared/gst';
-import { PERMISSIONS } from 'floman-shared/permissions';
+import { ADMIN_ROLE_NAME, PERMISSIONS } from 'floman-shared/permissions';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Alert, Image, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
@@ -55,7 +55,7 @@ export default function MyCompany() {
   const styles = useThemed(makeStyles);
   const colors = useColors();
   const canEdit = can(PERMISSIONS.COMPANY.UPDATE);
-  const isAdmin = Boolean(user?.roles.includes('Admin'));
+  const isAdmin = Boolean(user?.roles.includes(ADMIN_ROLE_NAME));
   const canLock = isAdmin && !workspace?.readOnly;
 
   const [error, setError] = useState<string | null>(null);

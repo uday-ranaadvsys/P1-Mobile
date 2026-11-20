@@ -1,12 +1,6 @@
 import { formatDate } from '@/lib/format';
 import type { AppUser } from './api';
 
-/** The plan's minimum for a password (the web's MIN_PASSWORD_LENGTH; the server checks it and says so). */
-export const MIN_PASSWORD_LENGTH = 8;
-
-/** The role an Admin has: only an Admin changes an Admin's account (the server enforces it too). */
-export const ADMIN_ROLE = 'Admin';
-
 export const fullName = (user: Pick<AppUser, 'firstName' | 'lastName'>) => [user.firstName, user.lastName].filter(Boolean).join(' ').trim();
 
 /** The name to show: the full name, else the email or mobile number. */

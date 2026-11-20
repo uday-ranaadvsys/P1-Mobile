@@ -1,9 +1,9 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { PERMISSIONS } from 'floman-shared/permissions';
+import { ADMIN_ROLE_NAME, PERMISSIONS } from 'floman-shared/permissions';
 import { useSession } from '@/features/auth/session';
 import { notify } from '@/lib/notify';
 import { toggleUserStatus, type AppUser } from './api';
-import { ADMIN_ROLE, displayName } from './text';
+import { displayName } from './text';
 
 /**
  * Who may do what with users, as the web's Users screen decides it (the server enforces the same): only an Admin invites
@@ -12,7 +12,7 @@ import { ADMIN_ROLE, displayName } from './text';
  */
 export function useUserAccess() {
   const { user: me, workspace, can } = useSession();
-  const isAdmin = Boolean(me?.roles.includes(ADMIN_ROLE));
+  const isAdmin = Boolean(me?.roles.includes(ADMIN_ROLE_NAME));
   const readOnly = Boolean(workspace?.readOnly);
   const seatLimit = workspace?.maxUsers ?? null;
   const activeSeats = workspace?.activeUsers ?? 0;
@@ -27,7 +27,7 @@ export function useUserAccess() {
     atSeatLimit,
     canInvite,
     /** May change this user's account at all (an Admin's account only by an Admin). */
-    canManage: (user: AppUser) => !readOnly && (isAdmin || !user.roles?.some((r) => r.name === ADMIN_ROLE)),
+    canManage: (user: AppUser) => !readOnly && (isAdmin || !user.roles?.some((r) => r.name === ADMIN_ROLE_NAME)),
   };
 }
 

@@ -1,22 +1,9 @@
-import { PERMISSION_RESOURCE_GROUPS, PERMISSION_RESOURCE_NAMES } from 'floman-shared/permissions';
-import type { Permission, Role } from './api';
+import { isFullAccess, MATRIX_COLUMNS, PERMISSION_RESOURCE_GROUPS, PERMISSION_RESOURCE_NAMES } from 'floman-shared/permissions';
+import type { Permission } from './api';
 
-/**
- * The six boxes per screen, as the web's Roles screen has them (client RolesPermissions.tsx; the screens, their names
- * and their groups come from floman-shared/permissions). "Documents:VIEW_PRICING" shows under See prices.
- */
-export const MATRIX_COLUMNS = [
-  { label: 'View', actions: ['READ'] },
-  { label: 'Create', actions: ['CREATE'] },
-  { label: 'Edit', actions: ['UPDATE'] },
-  { label: 'Delete', actions: ['DELETE'] },
-  { label: 'Approve', actions: ['APPROVE'] },
-  { label: 'See prices', actions: ['VIEW_PRICE', 'VIEW_PRICING'] },
-];
+// The six columns and the full-access rule are shared with the web (floman-shared/permissions).
+export { isFullAccess, MATRIX_COLUMNS };
 
-/** The full-access role: every box ticked, nothing can change. */
-export const isFullAccess = (role?: Role) =>
-  Boolean(role?.permissions?.some((p) => p.resource === '*' || p.action === '*') || ['admin', 'super admin'].includes(role?.name?.toLowerCase() ?? ''));
 
 /** The full-access wildcard belongs to the Admin role only; it is never offered as a box to tick. */
 export const grantable = (permissions: Permission[]) => permissions.filter((p) => p.resource !== '*');
