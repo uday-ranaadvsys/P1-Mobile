@@ -48,3 +48,5 @@ yarn-error.*
 Mobile UI-UX
 .agents/
 .claude/
+
+skills-lock.json

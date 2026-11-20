@@ -24,6 +24,10 @@ export type Colors = {
   lateText: string;
   lateBg: string;
   waitText: string;
+  /** A warning that something is incomplete (amber): text, fill and outline. */
+  warnText: string;
+  warnBg: string;
+  warnBorder: string;
   waitBg: string;
   placeholder: string;
 };
@@ -47,6 +51,9 @@ const light: Colors = {
   lateBg: 'rgba(220,38,38,0.10)',
   waitText: '#1D4ED8',
   waitBg: 'rgba(59,130,246,0.12)',
+  warnText: '#92400E',
+  warnBg: 'rgba(245,158,11,0.14)',
+  warnBorder: 'rgba(180,83,9,0.45)',
   placeholder: '#6B7280',
 };
 
@@ -69,6 +76,9 @@ const dark: Colors = {
   lateBg: 'rgba(248,113,113,0.16)',
   waitText: '#60A5FA',
   waitBg: 'rgba(59,130,246,0.18)',
+  warnText: '#FBBF24',
+  warnBg: 'rgba(245,158,11,0.12)',
+  warnBorder: 'rgba(245,158,11,0.40)',
   placeholder: '#8A8F98',
 };
 

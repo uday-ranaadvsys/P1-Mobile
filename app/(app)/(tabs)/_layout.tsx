@@ -1,7 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Tabs } from 'expo-router';
+import { Tabs, usePathname, useRouter } from 'expo-router';
+import { PERMISSIONS } from 'floman-shared/permissions';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { AppHeader } from '@/components/AppHeader';
+import { useSession } from '@/features/auth/session';
 import { useColors } from '@/theme';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -10,11 +12,31 @@ const tabIcon = (name: IconName) => ({ color, size }: { color: unknown; size: nu
   <Ionicons name={name} size={size + 2} color={String(color)} />
 );
 
-/** The red + in the middle of the bar: lifted above it, opens the Create page. */
+/** What the red + adds on each screen of the More tab: where it goes, who may, and what it is called. */
+const ADDS = [
+  { prefix: '/more/parties', href: '/more/parties/edit', permission: PERMISSIONS.VENDORS.CREATE, label: 'New vendor or customer' },
+  { prefix: '/more/parts', href: '/more/parts/edit', permission: PERMISSIONS.PARTS.CREATE, label: 'New part' },
+] as const;
+
+/**
+ * The red + in the middle of the bar, lifted above it. It adds what the screen you are on is about (a vendor or
+ * customer, a part); anywhere else it opens the Create page (new documents come later).
+ */
 function CreateButton({ onPress }: { onPress?: (...args: never[]) => void }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const { can } = useSession();
+  const adds = ADDS.find((a) => pathname.startsWith(a.prefix));
+  const press = () => {
+    if (adds) {
+      if (can(adds.permission)) router.push(adds.href);
+      return;
+    }
+    (onPress as () => void)();
+  };
   return (
     <View style={styles.slot}>
-      <Pressable onPress={onPress as () => void} style={styles.fab} accessibilityLabel="Create">
+      <Pressable onPress={press} style={styles.fab} accessibilityRole="button" accessibilityLabel={adds?.label ?? 'Create'}>
         <Ionicons name="add" size={36} color="#FFFFFF" />
       </Pressable>
     </View>

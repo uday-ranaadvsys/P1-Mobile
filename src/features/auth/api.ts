@@ -1,3 +1,4 @@
+import type { Workspace } from 'floman-shared/workspace';
 import { api } from '@/api/client';
 
 export type SessionUser = {
@@ -11,7 +12,7 @@ export type SessionUser = {
   permissions: string[]; // "Resource:ACTION"
   mustChangePassword: boolean;
 };
-export type Workspace = { status: string; readOnly: boolean };
+export type { Workspace };
 export type Company = { workspace: string; name: string };
 
 export type LoginResult =

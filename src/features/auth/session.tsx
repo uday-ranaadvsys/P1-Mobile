@@ -1,4 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
+import { canDo } from 'floman-shared/workspace';
 import * as SecureStore from 'expo-secure-store';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import * as authApi from '@/features/auth/api';
@@ -120,7 +121,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const value = useMemo<Session>(
     () => ({
       status, user, workspace, companies, signIn, pickCompany, cancelChoice, signOut, reload,
-      can: (permission) => Boolean(user?.permissions.includes(permission)),
+      can: (permission) => Boolean(user) && canDo(user!.permissions, workspace, permission),
     }),
     [status, user, workspace, companies, signIn, pickCompany, cancelChoice, signOut, reload],
   );

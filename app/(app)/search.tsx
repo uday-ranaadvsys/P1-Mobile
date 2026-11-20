@@ -81,10 +81,15 @@ export default function Search() {
 
         {data?.parties.length ? <Text style={styles.heading}>Parties</Text> : null}
         {data?.parties.map((party) => (
-          <View key={party.id} style={styles.card}>
+          <Pressable
+            key={party.id}
+            style={styles.card}
+            accessibilityRole="button"
+            onPress={() => router.push({ pathname: '/more/parties/[id]', params: { id: party.id } })}
+          >
             <Text style={styles.title}>{hide.text(party.name)}</Text>
             <Text style={styles.muted}>{[party.type, party.city].filter(Boolean).join(' · ')}</Text>
-          </View>
+          </Pressable>
         ))}
 
         {data?.parts.length ? <Text style={styles.heading}>Parts</Text> : null}
