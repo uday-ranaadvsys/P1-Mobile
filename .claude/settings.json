@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "deny": [
+      "Edit(~/.claude/projects/d--RANA-SOFTWARE-TO-SELL-P1/memory/**)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "grep -qiE 'd--RANA-SOFTWARE-TO-SELL-P1[\\/]+memory' && { echo 'Blocked: the P1 memory folder is read only from the mobile project (use the Read tool to read it).' >&2; exit 2; } || exit 0",
+            "statusMessage": "Checking P1 memory is untouched"
+          }
+        ]
+      }
+    ]
+  }
+}
