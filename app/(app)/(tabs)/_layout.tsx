@@ -4,6 +4,7 @@ import { PERMISSIONS } from 'floman-shared/permissions';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { AppHeader } from '@/components/AppHeader';
 import { useSession } from '@/features/auth/session';
+import { useUserAccess } from '@/features/users/useUserAccess';
 import { useColors } from '@/theme';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -16,6 +17,8 @@ const tabIcon = (name: IconName) => ({ color, size }: { color: unknown; size: nu
 const ADDS = [
   { prefix: '/more/parties', href: '/more/parties/edit', permission: PERMISSIONS.VENDORS.CREATE, label: 'New vendor or customer' },
   { prefix: '/more/parts', href: '/more/parts/edit', permission: PERMISSIONS.PARTS.CREATE, label: 'New part' },
+  { prefix: '/more/users', href: '/more/users/edit', permission: PERMISSIONS.USERS.CREATE, label: 'Invite user', inviteOnly: true },
+  { prefix: '/more/roles', href: '/more/roles/edit', permission: PERMISSIONS.ROLES.CREATE, label: 'New role', adminOnly: true },
 ] as const;
 
 /**
@@ -27,9 +30,12 @@ function CreateButton({ onPress }: { onPress?: (...args: never[]) => void }) {
   const router = useRouter();
   const { can } = useSession();
   const adds = ADDS.find((a) => pathname.startsWith(a.prefix));
+  const access = useUserAccess();
   const press = () => {
     if (adds) {
-      if (can(adds.permission)) router.push(adds.href);
+      // Inviting a user is for an Admin with a free seat (the Users screen's own rule).
+      const allowed = 'inviteOnly' in adds ? access.canInvite : 'adminOnly' in adds ? access.isAdmin && !access.readOnly : can(adds.permission);
+      if (allowed) router.push(adds.href);
       return;
     }
     (onPress as () => void)();

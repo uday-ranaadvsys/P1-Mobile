@@ -25,6 +25,8 @@ type Session = {
   cancelChoice: () => void;
   signOut: () => Promise<void>;
   reload: () => Promise<void>;
+  /** Asks again who I am and what the workspace allows, without a loading screen (the seat count after a user change). */
+  refresh: () => Promise<void>;
   can: (permission: string) => boolean;
 };
 
@@ -104,6 +106,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     [signIn],
   );
 
+  const refresh = useCallback(async () => {
+    try {
+      const data = await authApi.me();
+      setUser(data.user);
+      setWorkspace(data.workspace);
+    } catch {
+      // Keep what is shown: the next request says if the sign-in is over.
+    }
+  }, []);
+
   const cancelChoice = useCallback(() => {
     pending.current = null;
     setCompanies([]);
@@ -120,10 +132,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<Session>(
     () => ({
-      status, user, workspace, companies, signIn, pickCompany, cancelChoice, signOut, reload,
+      status, user, workspace, companies, signIn, pickCompany, cancelChoice, signOut, reload, refresh,
       can: (permission) => Boolean(user) && canDo(user!.permissions, workspace, permission),
     }),
-    [status, user, workspace, companies, signIn, pickCompany, cancelChoice, signOut, reload],
+    [status, user, workspace, companies, signIn, pickCompany, cancelChoice, signOut, reload, refresh],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

@@ -37,8 +37,8 @@ const GROUPS: { name: string; rows: Row[] }[] = [
     name: 'Settings',
     rows: [
       { title: 'My Company', icon: 'storefront-outline', permission: PERMISSIONS.COMPANY.READ, href: '/more/company' },
-      { title: 'Users', icon: 'people-outline', permission: PERMISSIONS.USERS.READ },
-      { title: 'Roles & Permissions', icon: 'shield-checkmark-outline', permission: PERMISSIONS.ROLES.READ },
+      { title: 'Users', icon: 'people-outline', permission: PERMISSIONS.USERS.READ, href: '/more/users' },
+      { title: 'Roles & Permissions', icon: 'shield-checkmark-outline', permission: PERMISSIONS.ROLES.READ, href: '/more/roles' },
       { title: 'E-Way Bill', icon: 'car-outline', adminOnly: true },
     ],
   },
