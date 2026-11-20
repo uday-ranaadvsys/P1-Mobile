@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Text } from 'react-native';
-import { changePassword } from '@/api/auth';
-import { useSession } from '@/auth/session';
-import { Button, ErrorText, Field, Screen, Title } from '@/components/ui';
-import { colors } from '@/theme';
+import { changePassword } from '@/features/auth/api';
+import { useSession } from '@/features/auth/session';
+import { Button } from '@/components/Button';
+import { ErrorText, Muted, Title } from '@/components/Text';
+import { Field } from '@/components/Field';
+import { Screen } from '@/components/Screen';
 
 /** Shown first when an admin set a temporary password: nothing else opens until it is replaced. */
 export default function ChangePassword() {
@@ -28,7 +29,7 @@ export default function ChangePassword() {
   return (
     <Screen>
       <Title>Change password</Title>
-      <Text style={{ color: colors.muted }}>Your password was set by an admin. Choose your own to continue.</Text>
+      <Muted>Your password was set by an admin. Choose your own to continue.</Muted>
       <Field label="Current password" value={current} onChangeText={setCurrent} secure />
       <Field label="New password" value={next} onChangeText={setNext} secure onSubmitEditing={submit} />
       <ErrorText message={error} />

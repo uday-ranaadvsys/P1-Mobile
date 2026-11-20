@@ -1,9 +1,10 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Text } from 'react-native';
-import { useSession } from '@/auth/session';
-import { Button, ErrorText, Field, Screen, Title } from '@/components/ui';
-import { colors } from '@/theme';
+import { useSession } from '@/features/auth/session';
+import { Button } from '@/components/Button';
+import { ErrorText, Muted, Title } from '@/components/Text';
+import { Field } from '@/components/Field';
+import { Screen } from '@/components/Screen';
 
 export default function Login() {
   const { signIn } = useSession();
@@ -29,7 +30,7 @@ export default function Login() {
   return (
     <Screen>
       <Title>floman</Title>
-      <Text style={{ color: colors.muted }}>Sign in to your company</Text>
+      <Muted>Sign in to your company</Muted>
       <Field
         label="Email Address or Mobile Number"
         value={identifier}

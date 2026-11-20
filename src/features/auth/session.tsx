@@ -1,8 +1,9 @@
+import { useQueryClient } from '@tanstack/react-query';
 import * as SecureStore from 'expo-secure-store';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import * as authApi from '@/api/auth';
+import * as authApi from '@/features/auth/api';
 import { ApiError, configureClient } from '@/api/client';
-import type { Company, SessionUser, Workspace } from '@/api/auth';
+import type { Company, SessionUser, Workspace } from '@/features/auth/api';
 
 // The 30-day token lives in the phone's secure storage, never in plain storage.
 const TOKEN_KEY = 'floman.token';
@@ -37,8 +38,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // Kept in memory only, to sign in again after "Choose company" (the server needs the password again).
   const pending = useRef<{ identifier: string; password: string } | null>(null);
 
+  const queryClient = useQueryClient();
+
   const clear = useCallback(async () => {
     token.current = null;
+    queryClient.clear(); // the next sign-in must never see this user's cached lists
     pending.current = null;
     await SecureStore.deleteItemAsync(TOKEN_KEY);
     await SecureStore.deleteItemAsync(EXPIRES_KEY);
@@ -46,7 +50,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setWorkspace(null);
     setCompanies([]);
     setStatus('out');
-  }, []);
+  }, [queryClient]);
 
   useEffect(() => {
     configureClient({ getToken: () => token.current, onSignedOut: () => void clear() });

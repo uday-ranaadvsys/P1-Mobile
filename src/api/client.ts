@@ -23,10 +23,10 @@ export const configureClient = (next: Hooks) => {
 };
 
 type Options = { method?: 'GET' | 'POST'; body?: unknown; login?: boolean };
-type Envelope<T> = { success?: boolean; data?: T; error?: { code: string; message: string; details?: unknown } };
+type Envelope<T> = { success?: boolean; data?: T; message?: string; error?: { code: string; message: string; details?: unknown } };
 
-/** Calls the API with the saved token and returns `data`. A 401 on a signed-in call signs the user out. */
-export async function api<T>(path: string, { method = 'GET', body, login = false }: Options = {}): Promise<T> {
+/** Calls the API with the saved token and returns `data` and the server's `message` (if any). A 401 on a signed-in call signs the user out. */
+export async function apiWithMessage<T>(path: string, { method = 'GET', body, login = false }: Options = {}): Promise<{ data: T; message: string | null }> {
   const token = hooks.getToken();
   let res: Response;
   try {
@@ -47,5 +47,10 @@ export async function api<T>(path: string, { method = 'GET', body, login = false
     if (res.status === 401 && token && !login) hooks.onSignedOut();
     throw new ApiError(res.status, json?.error?.code ?? 'ERROR', json?.error?.message ?? UNREACHABLE, json?.error?.details);
   }
-  return json.data as T;
+  return { data: json.data as T, message: json.message ?? null };
+}
+
+/** Same call, returning only `data`. */
+export async function api<T>(path: string, options: Options = {}): Promise<T> {
+  return (await apiWithMessage<T>(path, options)).data;
 }

@@ -1,13 +1,16 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, Text } from 'react-native';
-import { useSession } from '@/auth/session';
-import { Button, ErrorText, Screen, Title } from '@/components/ui';
-import { colors, radius, spacing } from '@/theme';
+import { useSession } from '@/features/auth/session';
+import { Button } from '@/components/Button';
+import { ErrorText, Title } from '@/components/Text';
+import { Screen } from '@/components/Screen';
+import { radius, spacing, useColors } from '@/theme';
 
 export default function ChooseCompany() {
   const { companies, pickCompany, cancelChoice } = useSession();
   const router = useRouter();
+  const colors = useColors();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
