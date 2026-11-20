@@ -34,7 +34,7 @@ export default function ChangePassword() {
       <Field label="New password" value={next} onChangeText={setNext} secure onSubmitEditing={submit} />
       <ErrorText message={error} />
       <Button title="Change password" onPress={submit} busy={busy} disabled={!current || !next} />
-      <Button title="Sign out" tone="plain" onPress={() => void signOut()} disabled={busy} />
+      <Button title="Sign out" tone="secondary" onPress={() => void signOut()} disabled={busy} />
     </Screen>
   );
 }

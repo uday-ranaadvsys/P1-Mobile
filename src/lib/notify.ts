@@ -6,3 +6,6 @@ export function notify(message: string | null) {
   if (Platform.OS === 'android') ToastAndroid.show(message, ToastAndroid.LONG);
   else Alert.alert(message);
 }
+
+/** What a button says when its screen isn't built yet. */
+export const COMING_SOON = 'Coming soon';

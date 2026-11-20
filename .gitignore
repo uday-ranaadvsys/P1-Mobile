@@ -43,3 +43,6 @@ yarn-error.*
 # env
 .env
 .env.local
+
+# folders
+Mobile UI-UX

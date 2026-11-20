@@ -57,3 +57,14 @@ export function formatMoney(value: number | string | null | undefined): string {
 
 /** A quantity with up to 2 decimals and no trailing zeros: 12, 2.5. */
 export const formatQty = (value: number | string) => String(Number(Number(value).toFixed(2)));
+
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+/** November */
+export const monthName = (date: Date) => MONTH_NAMES[date.getMonth()]!;
+
+/** "RA" for "Rana Advanced Systems": the first letters of the first two words. */
+export function initials(name: string): string {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  return ((words[0]?.[0] ?? '') + (words[1]?.[0] ?? '')).toUpperCase() || '?';
+}

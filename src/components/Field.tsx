@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
+import { Pressable, StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
+import { Text } from '@/components/AppText';
 import { radius, spacing, useColors, useThemed, type Colors } from '@/theme';
 
 type FieldProps = TextInputProps & { label: string; secure?: boolean };
@@ -38,6 +39,6 @@ const makeStyles = (c: Colors) =>
       flexDirection: 'row', alignItems: 'center', backgroundColor: c.surface, borderWidth: 1,
       borderColor: c.outline, borderRadius: radius, paddingHorizontal: spacing.md,
     },
-    input: { flex: 1, paddingVertical: 12, fontSize: 16, color: c.ink },
+    input: { flex: 1, paddingVertical: 12, fontSize: 16, color: c.ink, fontFamily: 'Inter_400Regular' },
     toggle: { color: c.brandText, fontWeight: '600' },
   });

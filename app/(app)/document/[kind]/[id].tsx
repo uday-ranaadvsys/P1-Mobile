@@ -3,7 +3,8 @@ import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { OVER_ORDER_CODE, QUANTITY_TEXT, TODAY_GROUP } from 'floman-shared/constants';
 import { DOCUMENT_NAMES, type DocumentType } from 'floman-shared/documentTypes';
 import { useLayoutEffect, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, View } from 'react-native';
+import { Text } from '@/components/AppText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getDocument, type DocumentLine } from '@/features/documents/api';
 import { approveDocument, returnDocument, type OverOrderDetails } from '@/features/approvals/api';
@@ -33,6 +34,7 @@ export default function Review() {
   const hide = useHide();
   const styles = useThemed(makeStyles);
   const canDecide = p.group === TODAY_GROUP.APPROVE;
+  const returned = p.group === TODAY_GROUP.FIX;
   const label = DOCUMENT_NAMES[p.kind as DocumentType] ?? '';
 
   const [busy, setBusy] = useState<'approve' | 'return' | null>(null);
@@ -101,7 +103,7 @@ export default function Review() {
     return (
       <Centered>
         <ErrorText message={messageOf(loadError)} />
-        <Button title="Try again" onPress={() => void refetch()} />
+        <Button title="Try again" tone="secondary" onPress={() => void refetch()} />
       </Centered>
     );
   }
@@ -111,19 +113,22 @@ export default function Review() {
   return (
     <SafeAreaView style={styles.root} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.page}>
-        <View style={styles.card}>
-          <Text style={styles.party}>{hide.text(doc.vendor?.name ?? p.party)}</Text>
-          <Text style={styles.small}>
-            {[p.by && `From ${p.by}`, p.date && (canDecide ? since(p.date) : formatDate(p.date))].filter(Boolean).join(', ')}
-          </Text>
-        </View>
-
-        {p.group === TODAY_GROUP.FIX && (doc.approvalRemarks || p.note) ? (
+        {/* A returned document: the approver's remarks come first, since they say what to fix. */}
+        {returned && (doc.approvalRemarks || p.note) ? (
           <View style={[styles.card, { borderColor: colors.lateText }]}>
-            <Text style={styles.heading}>Returned{p.by ? ` by ${p.by}` : ''}</Text>
+            <Text style={styles.heading}>Returned{p.by ? ` by ${p.by}` : ''}{p.date ? ` · ${since(p.date)}` : ''}</Text>
             <Text style={styles.body}>{doc.approvalRemarks || p.note}</Text>
           </View>
         ) : null}
+
+        <View style={styles.card}>
+          <Text style={styles.party}>{hide.text(doc.vendor?.name ?? p.party)}</Text>
+          {!returned ? (
+            <Text style={styles.small}>
+              {[p.by && `From ${p.by}`, p.date && (canDecide ? since(p.date) : formatDate(p.date))].filter(Boolean).join(', ')}
+            </Text>
+          ) : null}
+        </View>
 
         <View style={[styles.card, { padding: 0, overflow: 'hidden' }]}>
           <Text style={[styles.heading, styles.pad]}>Items</Text>
@@ -144,10 +149,10 @@ export default function Review() {
 
       {canDecide ? (
         <View style={styles.bar}>
-          <Button title="Return" tone="plain" style={{ flex: 1 }} disabled={busy !== null} onPress={() => { setError(null); setReturning(true); }} />
+          <Button title="Return" tone="secondary" style={{ flex: 1 }} disabled={busy !== null} onPress={() => { setError(null); setReturning(true); }} />
           <Button
             title="Approve"
-            tone="good"
+            tone="primary"
             style={{ flex: 1 }}
             busy={busy === 'approve'}
             disabled={busy !== null}

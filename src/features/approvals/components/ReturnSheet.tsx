@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '@/components/AppText';
 import { Button } from '@/components/Button';
 import { ErrorText } from '@/components/Text';
 import { Field } from '@/components/Field';
@@ -20,7 +21,7 @@ export function ReturnSheet({ visible, title, busy, error, onClose, onSend }: {
           <Field label="Remarks" value={remarks} onChangeText={setRemarks} multiline autoCapitalize="sentences" autoFocus />
           <ErrorText message={error} />
           <Button title="Return" onPress={() => onSend(remarks.trim())} busy={busy} disabled={!remarks.trim()} />
-          <Button title="Cancel" tone="plain" onPress={onClose} disabled={busy} />
+          <Button title="Cancel" tone="secondary" onPress={onClose} disabled={busy} />
         </View>
       </KeyboardAvoidingView>
     </Modal>

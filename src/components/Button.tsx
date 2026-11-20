@@ -1,27 +1,44 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
-import { radius, useColors, useThemed, type Colors } from '@/theme';
+import { ActivityIndicator, Pressable, StyleSheet } from 'react-native';
+import { Text } from '@/components/AppText';
+import { type, useColors, useThemed, type Colors } from '@/theme';
 
-/** Filled buttons are the same dark red with white text in light and dark; `plain` is an outline. */
-export function Button({ title, onPress, busy, disabled, tone = 'brand', style }: {
-  title: string; onPress: () => void; busy?: boolean; disabled?: boolean; tone?: 'brand' | 'plain' | 'good'; style?: object;
+/**
+ * The web's buttons (client/src/index.css), on the phone:
+ * - primary (.btn-primary): the main action, filled brand red, bold white text;
+ * - secondary (.btn-secondary): any normal action, transparent with a grey outline and dark text;
+ * - receive (.btn-receive): money coming in, filled green, same shape as primary.
+ * Danger is an outline in the danger colour, never filled (.btn-danger).
+ */
+export type ButtonTone = 'primary' | 'secondary' | 'receive' | 'danger';
+
+export function Button({ title, onPress, busy, disabled, tone = 'primary', style }: {
+  title: string; onPress: () => void; busy?: boolean; disabled?: boolean; tone?: ButtonTone; style?: object;
 }) {
   const styles = useThemed(makeStyles);
   const colors = useColors();
   const off = busy || disabled;
-  const filled = tone !== 'plain';
+  const filled = tone === 'primary' || tone === 'receive';
   return (
     <Pressable
       onPress={onPress}
       disabled={off}
-      style={[
+      accessibilityRole="button"
+      accessibilityState={{ disabled: Boolean(off), busy: Boolean(busy) }}
+      style={({ pressed }) => [
         styles.button,
-        tone === 'plain' ? styles.plain : { backgroundColor: tone === 'good' ? colors.receiveButton : colors.brand },
-        off && { opacity: 0.6 },
+        tone === 'primary' && { backgroundColor: colors.brand },
+        tone === 'receive' && { backgroundColor: colors.receiveButton },
+        tone === 'secondary' && styles.secondary,
+        tone === 'danger' && { borderWidth: 1, borderColor: colors.danger },
+        pressed && { opacity: 0.75 },
+        off && { opacity: 0.5 },
         style,
       ]}
     >
-      {busy ? <ActivityIndicator color={filled ? '#fff' : colors.brandText} /> : (
-        <Text style={[styles.text, !filled && { color: colors.brandText }]}>{title}</Text>
+      {busy ? (
+        <ActivityIndicator color={filled ? '#FFFFFF' : colors.ink} />
+      ) : (
+        <Text style={[filled ? styles.filledText : styles.outlineText, tone === 'danger' && { color: colors.danger }]}>{title}</Text>
       )}
     </Pressable>
   );
@@ -29,7 +46,9 @@ export function Button({ title, onPress, busy, disabled, tone = 'brand', style }
 
 const makeStyles = (c: Colors) =>
   StyleSheet.create({
-    button: { borderRadius: radius, paddingVertical: 14, alignItems: 'center' },
-    plain: { backgroundColor: 'transparent', borderWidth: 1, borderColor: c.brandText },
-    text: { color: '#fff', fontSize: 16, fontWeight: '600' },
+    // 48 pt tall (the minimum is 44), rounded like the web's buttons.
+    button: { minHeight: 48, borderRadius: 10, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center' },
+    secondary: { backgroundColor: 'transparent', borderWidth: 1, borderColor: c.outline },
+    filledText: { ...type.headline, fontWeight: '700', color: '#FFFFFF' },
+    outlineText: { ...type.headline, color: c.ink },
   });

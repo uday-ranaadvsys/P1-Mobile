@@ -2,10 +2,10 @@ import { useInfiniteQuery } from '@tanstack/react-query';
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { TODAY_GROUP_WORDS } from 'floman-shared/constants';
 import { useLayoutEffect } from 'react';
-import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text } from 'react-native';
+import { ActivityIndicator, FlatList, RefreshControl, StyleSheet } from 'react-native';
+import { Text } from '@/components/AppText';
 import { getGroupPage } from '@/features/approvals/api';
 import type { TodayGroupKey } from '@/features/today/api';
-import { TODAY_GROUP } from 'floman-shared/constants';
 import { Button } from '@/components/Button';
 import { Centered } from '@/components/Screen';
 import { ErrorText } from '@/components/Text';
@@ -43,7 +43,7 @@ export default function GroupList() {
     return (
       <Centered>
         <ErrorText message={query.error instanceof Error ? query.error.message : null} />
-        <Button title="Try again" onPress={() => void query.refetch()} />
+        <Button title="Try again" tone="secondary" onPress={() => void query.refetch()} />
       </Centered>
     );
   }
@@ -57,12 +57,7 @@ export default function GroupList() {
       data={items}
       keyExtractor={(item) => `${item.kind}:${item.id}`}
       renderItem={({ item }) => (
-        <ItemCard
-          group={group}
-          item={item}
-          onPress={() => openReview(router, group, item)}
-          actionLabel={group === TODAY_GROUP.APPROVE ? 'Review' : undefined}
-        />
+        <ItemCard group={group} item={item} onOpen={() => openReview(router, group, item)} />
       )}
       ListHeaderComponent={<Text style={styles.muted}>{count} in all. {TODAY_GROUP_WORDS[group].why}.</Text>}
       ListEmptyComponent={<Text style={styles.muted}>Nothing here.</Text>}

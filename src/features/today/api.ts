@@ -36,3 +36,14 @@ export type DoneEntry = {
 export type TodayResult = { groups: TodayGroup[]; cleared: number; done: DoneEntry[] };
 
 export const getToday = () => api<TodayResult>('/today');
+
+/** Money pulse (GET /today/panel): only the figures the user may see are there. */
+export type MoneyPulse = {
+  collectedToday?: number;
+  netRevenue?: { month: number; lastMonth: number };
+  receivable?: { total: number; overdue: number };
+  payable?: { total: number; overdue: number };
+};
+export type TodayPanel = { money: MoneyPulse };
+
+export const getPanel = () => api<TodayPanel>('/today/panel');

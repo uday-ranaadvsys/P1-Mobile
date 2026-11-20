@@ -1,6 +1,7 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, Text } from 'react-native';
+import { Pressable } from 'react-native';
+import { Text } from '@/components/AppText';
 import { useSession } from '@/features/auth/session';
 import { Button } from '@/components/Button';
 import { ErrorText, Title } from '@/components/Text';
@@ -45,7 +46,7 @@ export default function ChooseCompany() {
       <ErrorText message={error} />
       <Button
         title="Back"
-        tone="plain"
+        tone="secondary"
         onPress={() => {
           cancelChoice();
           router.back();

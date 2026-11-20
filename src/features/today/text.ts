@@ -111,3 +111,32 @@ export function doneText(entry: DoneEntry): string {
   }
   return `${entry.number} ${DONE_VERB[entry.action] ?? entry.action.replace(/_/g, ' ').toLowerCase()}`;
 }
+
+/**
+ * The button a Today item gets, in the web's words (client features/today/config.ts actionOf). Only Review
+ * works on the phone so far; the others say "Coming soon" until their flows are built.
+ */
+export function actionOf(group: TodayGroupKey): { label: string; works: boolean } {
+  switch (group) {
+    case TODAY_GROUP.FIX:
+      return { label: 'Fix', works: false };
+    case TODAY_GROUP.APPROVE:
+      return { label: 'Review', works: true };
+    case TODAY_GROUP.COLLECT:
+      return { label: 'Record payment', works: false };
+    case TODAY_GROUP.PAY:
+      return { label: 'Pay vendor', works: false };
+    case TODAY_GROUP.RECEIVE:
+      return { label: 'Receive', works: false };
+    case TODAY_GROUP.BILL:
+      return { label: 'Create Invoice', works: false };
+    case TODAY_GROUP.CALIBRATE:
+      return { label: CALIBRATION_TEXT.TODAY_ACTION, works: false };
+    case TODAY_GROUP.FOLLOW_UP:
+      return { label: 'Open', works: false };
+    case TODAY_GROUP.INDENTS:
+      return { label: 'Open in Manage Indents', works: false };
+    case TODAY_GROUP.DRAFTS:
+      return { label: 'Continue', works: false };
+  }
+}

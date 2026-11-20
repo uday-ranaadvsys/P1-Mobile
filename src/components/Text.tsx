@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-import { StyleSheet, Text } from 'react-native';
+import { StyleSheet } from 'react-native';
+import { Text } from '@/components/AppText';
 import { useThemed, type Colors } from '@/theme';
 
 export function Title({ children }: { children: ReactNode }) {

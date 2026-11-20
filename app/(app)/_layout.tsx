@@ -21,7 +21,7 @@ export default function AppLayout() {
     return (
       <Centered>
         <ErrorText message={UNREACHABLE} />
-        <Button title="Try again" onPress={() => void reload()} />
+        <Button title="Try again" tone="secondary" onPress={() => void reload()} />
       </Centered>
     );
   }
