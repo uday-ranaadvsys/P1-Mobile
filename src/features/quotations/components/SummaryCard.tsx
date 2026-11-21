@@ -1,4 +1,4 @@
-import { DEDUCTION_KIND_LABEL, DEDUCTION_TEXT } from 'floman-shared/constants';
+import { DEDUCTION_KIND, DEDUCTION_KIND_LABEL, DEDUCTION_TEXT } from 'floman-shared/constants';
 import { StyleSheet, Switch, View } from 'react-native';
 import { Text } from '@/components/AppText';
 import { Field } from '@/components/Field';
@@ -14,21 +14,30 @@ type Totals = {
   roundOffAmount: number;
   totalDiscount: number;
   grandTotal: number;
-  deductions: { TCS: { rate: number; amount: number } | null };
+  deductions: { TCS: { rate: number; amount: number } | null; GST_TDS?: { rate: number; amount: number } | null; TDS?: { rate: number; amount: number } | null };
+  /** The grand total less the GST-TDS and TDS kept back. */
+  netDue?: number;
 };
 
 /**
  * The web's Summary: taxable amount, GST, the extra discount (a % typed here), TCS when ticked, the round-off switch,
  * the total discount and the grand total. The figures come from floman-shared, the server's own calculation.
  */
-export function SummaryCard({ totals, exempt, extraDiscount, onExtraDiscount, isRoundOff, onRoundOff }: {
+export function SummaryCard({ totals, exempt, extraDiscount, onExtraDiscount, isRoundOff, onRoundOff, purchase }: {
   totals: Totals; exempt: boolean; extraDiscount: string; onExtraDiscount: (v: string) => void; isRoundOff: boolean; onRoundOff: (v: boolean) => void;
+  /** A purchase document: the TDS kept back and "Amount to pay" show after the grand total. */
+  purchase?: boolean;
 }) {
   const styles = useThemed(makeStyles);
   const colors = useColors();
   const hide = useHide();
   const money = (v: number) => (hide.hidden ? hide.rupees(0) : formatMoney(v));
   const tcs = totals.deductions.TCS;
+  // The TDS kinds are kept back from what is paid, not added to the total (web: KeptBackSummaryRows).
+  const keptBack = [DEDUCTION_KIND.GST_TDS, DEDUCTION_KIND.TDS].flatMap((kind) => {
+    const worked = totals.deductions[kind];
+    return worked && worked.amount > 0 ? [[kind, worked] as const] : [];
+  });
 
   const row = (label: string, value: string, bold?: boolean) => (
     <View style={styles.row}>
@@ -64,6 +73,15 @@ export function SummaryCard({ totals, exempt, extraDiscount, onExtraDiscount, is
           <Text style={styles.totalLabel}>Grand total</Text>
           <Text style={styles.totalValue}>{money(totals.grandTotal)}</Text>
         </View>
+        {keptBack.length > 0 ? (
+          <>
+            {keptBack.map(([kind, worked]) => row(DEDUCTION_TEXT.lessLine(DEDUCTION_KIND_LABEL[kind], worked.rate), `-${money(worked.amount)}`))}
+            <View style={styles.row}>
+              <Text style={[styles.muted, { fontWeight: '700' }]}>{purchase ? DEDUCTION_TEXT.AMOUNT_TO_PAY : DEDUCTION_TEXT.AMOUNT_TO_RECEIVE}</Text>
+              <Text style={styles.netValue}>{money(totals.netDue ?? totals.grandTotal)}</Text>
+            </View>
+          </>
+        ) : null}
       </View>
     </View>
   );
@@ -78,4 +96,5 @@ const makeStyles = (c: Colors) =>
     total: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', borderTopWidth: 1, borderTopColor: c.outline, paddingTop: spacing.md },
     totalLabel: { ...type.headline, color: c.ink },
     totalValue: { ...type.title1, color: c.ink },
+    netValue: { ...type.headline, fontWeight: '700', color: c.ink },
   });

@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { TODAY_GROUP } from 'floman-shared/constants';
+import { DISCOUNT_TYPE, TODAY_GROUP } from 'floman-shared/constants';
 import { DOCUMENT_TYPE } from 'floman-shared/documentTypes';
 import { PERMISSIONS } from 'floman-shared/permissions';
 import { CONVERTIBLE_QUOTATION_STATUSES, QUOTATION_ITEM_STATUS, QUOTATION_STATUS } from 'floman-shared/statuses';
@@ -218,7 +218,7 @@ export default function QuotationDetail() {
                   </View>
                   <Text style={styles.small}>
                     {Number(item.qty)} {item.uom} × {amount(item.unitPrice)}
-                    {Number(item.discount) ? ` · Disc ${Number(item.discount)}${item.discountType === 'AMOUNT' ? '' : '%'}` : ''} · GST {Number(item.taxRate)}%
+                    {Number(item.discount) ? ` · Disc ${Number(item.discount)}${item.discountType === DISCOUNT_TYPE.AMOUNT ? '' : '%'}` : ''} · GST {Number(item.taxRate)}%
                   </Text>
                   {item.approverRemarks ? (
                     <View style={styles.remark}>

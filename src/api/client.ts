@@ -40,7 +40,16 @@ export function mediaSource(url: string | null | undefined): { uri: string; head
 }
 
 type Options = { method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; body?: unknown; login?: boolean };
-type Envelope<T> = { success?: boolean; data?: T; message?: string; meta?: Meta; error?: { code: string; message: string; details?: unknown } };
+type Envelope<T> = {
+  success?: boolean;
+  data?: T;
+  message?: string;
+  meta?: Meta;
+  /** The shape the web's lists use: the page, the total and the pages here, the cards' counts in `meta.stats` or `kpiCounts`. */
+  pagination?: { total: number; page: number; limit: number; totalPages: number };
+  kpiCounts?: Record<string, number | null>;
+  error?: { code: string; message: string; details?: unknown };
+};
 
 /** What a list answers beside its rows: the page, the total and the cards' counts. */
 export type Meta = { page: number; limit: number; total: number; totalPages: number; stats?: Record<string, number> } & Record<string, unknown>;
@@ -74,7 +83,20 @@ export async function apiWithMessage<T>(path: string, { method = 'GET', body, lo
     // Most errors are { error: { message } }; a few routes (the GSTIN lookup) answer with a plain { message }.
     throw new ApiError(res.status, json?.error?.code ?? 'ERROR', json?.error?.message ?? json?.message ?? UNREACHABLE, json?.error?.details);
   }
-  return { data: json.data as T, message: json.message ?? null, meta: json.meta ?? null };
+  return { data: json.data as T, message: json.message ?? null, meta: metaOf(json) };
+}
+
+/**
+ * What a list answers beside its rows, as one `meta`: the page, total and pages, and the cards' counts as `stats`. The
+ * Masters lists send all of it in `meta`; the web's document lists send `pagination` (and `meta.stats` or `kpiCounts`).
+ */
+function metaOf(json: Envelope<unknown>): Meta | null {
+  if (!json.meta && !json.pagination && !json.kpiCounts) return null;
+  return {
+    ...json.pagination,
+    ...json.meta,
+    ...(json.kpiCounts && !json.meta?.stats ? { stats: json.kpiCounts as Record<string, number> } : {}),
+  } as Meta;
 }
 
 /** A PDF takes the server a few seconds (it makes it in a browser of its own), so it may take longer than other calls. */

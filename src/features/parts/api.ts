@@ -9,8 +9,12 @@ export type Part = {
   id: string;
   partType: string;
   name: string;
+  /** The part's own code, kept on a purchase line. */
+  code?: string | null;
   description: string | null;
   uom: string;
+  /** An older price field the web falls back to when there is no selling price. */
+  defaultPrice?: number | string | null;
   defaultTax: number | string;
   sellingPriceWithTax?: number | null;
   sellingPriceWithoutTax?: number | null;

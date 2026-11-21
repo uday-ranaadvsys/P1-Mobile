@@ -3,11 +3,12 @@ import { isZeroRatedSupply, partTaxRate, SUPPLY_TYPE } from 'floman-shared/gst';
 import { calculateWithoutTax, calculateWithTax } from 'floman-shared/priceConversion';
 import { toISODate } from '@/components/DateField';
 import type { Part } from '@/features/parts/api';
-import type { Party, PartyAddress } from '@/features/parties/api';
+import type { Party } from '@/features/parties/api';
+import { addDays, PRIMARY } from '@/features/parties/places';
 import type { CustomFieldDefinition, Quotation, QuotationItem } from './api';
 
-/** Sent for "Ship to" while the customer's own (Primary) address is chosen. */
-export const PRIMARY = 'primary';
+// The party's places and the date helper are shared with the other documents (features/parties/places.ts).
+export { billingAddresses, defaultShipToId, deliveryAddresses, placeChoice, PRIMARY } from '@/features/parties/places';
 
 /** What the header of the Quotation form holds (the web form's Customer & dates, Project, Notes & terms). */
 export type QuotationHeader = {
@@ -34,12 +35,6 @@ export type QuotationHeader = {
 };
 
 export type HeaderErrors = Partial<Record<'party' | 'issueDate' | 'validityDate' | 'series', string>> & { custom?: Record<string, string> };
-
-const addDays = (iso: string, days: number) => {
-  const d = new Date(`${iso}T00:00:00`);
-  d.setDate(d.getDate() + days);
-  return toISODate(d);
-};
 
 /** A new Quotation: today, valid for the usual number of days, nothing chosen yet. */
 export function newHeader(): QuotationHeader {
@@ -87,6 +82,9 @@ export type FormLine = {
   /** The Part Master part: every line needs one. */
   partId: string | null;
   partName: string;
+  /** The part's code and HSN, kept on a purchase line (a Quotation line does not use them). */
+  partCode: string | null;
+  hsn: string;
   scope: string;
   showSpecs: boolean;
   qty: string;
@@ -112,6 +110,8 @@ export const newLine = (): FormLine => ({
   key: `line-${Date.now()}-${lineCounter++}`,
   partId: null,
   partName: '',
+  partCode: null,
+  hsn: '',
   scope: '',
   showSpecs: false,
   qty: '',
@@ -192,7 +192,7 @@ const linePayload = (l: FormLine, exempt: boolean, fallbackUom: string) => ({
 });
 
 /** A custom field's value for the server: numbers as numbers, nothing for a field left empty. */
-const customPayload = (fields: CustomFieldDefinition[], values: Record<string, unknown>) =>
+export const customPayload = (fields: CustomFieldDefinition[], values: Record<string, unknown>) =>
   Object.fromEntries(
     fields
       .filter((f) => f.fieldType === 'checkbox' || filledIn(values[f.fieldKey]))
@@ -249,21 +249,6 @@ export function validForDays(h: Pick<QuotationHeader, 'issueDate' | 'validityDat
   const days = Math.round((new Date(`${h.validityDate}T00:00:00`).getTime() - new Date(`${h.issueDate}T00:00:00`).getTime()) / 86_400_000);
   return days >= 0 ? days : null;
 }
-
-// The party's places, as the web's document form lists them (client components/DocumentPlaces.tsx).
-type HasAddresses = { addresses?: PartyAddress[] } | null | undefined;
-
-/** The party's delivery addresses (what a Ship To can be). */
-export const deliveryAddresses = (party: HasAddresses) => (party?.addresses ?? []).filter((a) => a.isActive !== false && a.isShipping !== false);
-
-/** The party's billing addresses besides its registered one. */
-export const billingAddresses = (party: HasAddresses) => (party?.addresses ?? []).filter((a) => a.isActive !== false && a.isBilling);
-
-/** The id a new document ships to: the party's default delivery address, else Primary. */
-export const defaultShipToId = (party: HasAddresses) => deliveryAddresses(party).find((a) => a.isDefault)?.id ?? PRIMARY;
-
-/** "Plant 2 — Pune, Maharashtra" in a place list. */
-export const placeChoice = (a: Pick<PartyAddress, 'label' | 'city' | 'state'>) => `${a.label || 'Place'} — ${a.city}${a.state ? `, ${a.state}` : ''}`;
 
 // ── A saved Quotation back into the form (Edit, Duplicate) ───────────────────
 

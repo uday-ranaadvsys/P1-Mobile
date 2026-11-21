@@ -2,10 +2,11 @@ import { StyleSheet, View } from 'react-native';
 import { Text } from '@/components/AppText';
 import { DateField } from '@/components/DateField';
 import { Field } from '@/components/Field';
+import { ScrollAnchor } from '@/components/FormScroll';
 import { SwitchRow } from '@/components/FormParts';
 import { PickerField } from '@/components/PickerField';
 import { spacing, type, useThemed, type Colors } from '@/theme';
-import type { CustomFieldDefinition } from '../api';
+import type { CustomFieldDefinition } from '@/features/documents/api';
 
 const text = (v: unknown) => (v === undefined || v === null ? '' : String(v));
 
@@ -21,7 +22,13 @@ export function CustomFieldsForm({ fields, values, onChange, errors }: {
   return (
     <View style={{ gap: spacing.md }}>
       <Text style={styles.title}>Additional Custom Fields</Text>
-      {fields.map((f) => {
+      {fields.map((f) => (
+        <ScrollAnchor key={f.id} name={`custom:${f.fieldKey}`}>{field(f)}</ScrollAnchor>
+      ))}
+    </View>
+  );
+
+  function field(f: CustomFieldDefinition) {
         const label = f.isConfidential ? `${f.displayLabel} (confidential)` : f.displayLabel;
         const error = errors?.[f.fieldKey];
         const value = values[f.fieldKey];
@@ -52,9 +59,7 @@ export function CustomFieldsForm({ fields, values, onChange, errors }: {
           default:
             return <Field key={f.id} label={label} required={f.isRequired} value={text(value)} onChangeText={(v) => onChange(f.fieldKey, v)} placeholder={f.defaultValue || `Enter ${f.displayLabel.toLowerCase()}...`} maxLength={f.maxLength || 255} autoCapitalize="sentences" error={error} />;
         }
-      })}
-    </View>
-  );
+  }
 }
 
 const makeStyles = (c: Colors) => StyleSheet.create({ title: { ...type.headline, color: c.ink } });

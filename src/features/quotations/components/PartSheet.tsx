@@ -7,7 +7,7 @@ import { Text } from '@/components/AppText';
 import { listParts, type Part } from '@/features/parts/api';
 import { formatMoney } from '@/lib/format';
 import { useHide } from '@/lib/privacy';
-import { radius, spacing, type, useColors, useThemed, type Colors } from '@/theme';
+import { linkIndigo, radius, spacing, type, useColors, useThemed, type Colors } from '@/theme';
 
 const LIMIT = 50;
 
@@ -76,8 +76,8 @@ export function PartSheet({ visible, selectedId, onPick, onNew, onClose }: {
               accessibilityRole="button"
               style={({ pressed }) => [styles.newRow, pressed && { opacity: 0.6 }]}
             >
-              <Ionicons name="add-circle-outline" size={22} color={colors.brandText} />
-              <Text style={[styles.newText, { color: colors.brandText }]}>New part</Text>
+              <Ionicons name="add-circle-outline" size={22} color={linkIndigo} />
+              <Text style={[styles.newText, { color: linkIndigo }]}>New part</Text>
             </Pressable>
           ) : null}
           <FlatList

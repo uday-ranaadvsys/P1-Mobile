@@ -1,5 +1,8 @@
 import { api, apiWithMessage, type Meta } from '@/api/client';
 
+// The pieces every document form shares live in features/documents/api.ts; kept importable from here.
+export { listCustomFields, listSeries, listTextTemplates, type CustomFieldDefinition, type SeriesOption, type TextTemplate } from '@/features/documents/api';
+
 export type QuotationItem = {
   id: string;
   partId?: string | null;
@@ -122,31 +125,6 @@ export async function listQuotations(page: number, limit: number, f: QuotationFi
 /** One quotation with its lines, linked documents and history (GET /quotations/:id). */
 export const getQuotation = (id: string) => api<Quotation>(`/quotations/${id}`);
 
-/** One numbering series a new document can take, with the number it gives next (GET /sequences/options). */
-export type SeriesOption = { id: string; name: string; prefix: string; isDefault: boolean; nextNumber: string };
-
-/** The active series of this financial year for a kind of document; with a location, only that place's series. */
-export const listSeries = (documentType: string, locationId: string | null) =>
-  api<SeriesOption[]>(`/sequences/options${query({ documentType, locationId: locationId ?? undefined })}`);
-
-/** A saved note or saved terms (GET /templates/notes, /templates/terms): text to start a document's own from. */
-export type TextTemplate = { id: string; title?: string | null; name?: string | null; content?: string | null; termsAndConditions?: string | null; isDefault?: boolean };
-
-export const listTextTemplates = (kind: 'notes' | 'terms', documentType: string) => api<TextTemplate[]>(`/templates/${kind}${query({ documentType })}`);
-
-export type CustomFieldDefinition = {
-  id: string;
-  fieldKey: string;
-  displayLabel: string;
-  fieldType: string;
-  isConfidential: boolean;
-  sortOrder: number;
-  isRequired?: boolean;
-  defaultValue?: string | null;
-  maxLength?: number | null;
-  dropdownOptions?: string[] | null;
-};
-
 /** What a save sends (server: CreateQuotationSchema). Built in features/quotations/form.ts. */
 export type QuotationPayload = Record<string, unknown>;
 
@@ -165,6 +143,3 @@ export const restoreQuotation = (id: string, reason: string) => apiWithMessage<Q
 /** What stops Edit on an approved Quotation (only the company's lock), asked before its form opens. */
 export type EditBlock = { code?: string; message: string; link?: { kind: string; id: string; number: string } };
 export const quotationEditCheck = async (id: string) => (await api<{ block: EditBlock | null }>(`/quotations/${id}/edit-check`)).block;
-
-/** The company's own fields for a kind of document (GET /custom-fields). */
-export const listCustomFields = (documentType: string) => api<CustomFieldDefinition[]>(`/custom-fields?documentType=${documentType}`);

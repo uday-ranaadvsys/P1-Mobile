@@ -11,11 +11,12 @@ import { Text } from '@/components/AppText';
 import { Button } from '@/components/Button';
 import { Field } from '@/components/Field';
 import { FieldLink } from '@/components/FieldLink';
+import { ScrollAnchor } from '@/components/FormScroll';
 import { FormCard, OptionPills, SectionHeader } from '@/components/FormParts';
 import { FullScreenModal } from '@/components/FullScreenModal';
 import { PickerField } from '@/components/PickerField';
 import { useSession } from '@/features/auth/session';
-import { getPartMeta } from '@/features/parts/api';
+import { getPartMeta, type Part } from '@/features/parts/api';
 import { PartForm } from '@/features/parts/components/PartForm';
 import { formatMoney } from '@/lib/format';
 import { useHide } from '@/lib/privacy';
@@ -36,7 +37,13 @@ const DISCOUNT_OPTIONS = [
  * and free quantity in the part's unit, the rate before and with GST (typing one works out the other), the discount in
  * % or ₹, the GST rate, and the line's amount. SEZ with LUT charges no GST, so each line shows 0%.
  */
-export function ItemsSection({ lines, onChange, supplyType, problem }: { lines: FormLine[]; onChange: (lines: FormLine[]) => void; supplyType: string; problem: { key: string; message: string } | null }) {
+export function ItemsSection({ lines, onChange, supplyType, problem, back = 'Quotation', applyPart = withPart }: {
+  lines: FormLine[]; onChange: (lines: FormLine[]) => void; supplyType: string; problem: { key: string; message: string } | null;
+  /** The document this is part of, for the part form's back link. */
+  back?: string;
+  /** What a picked (or just saved) part brings to a line: a Quotation's selling price, a Purchase Order's rate and HSN. */
+  applyPart?: (line: FormLine, part: Part, fallbackRate: number) => FormLine;
+}) {
   const styles = useThemed(makeStyles);
   const colors = useColors();
   const hide = useHide();
@@ -70,7 +77,8 @@ export function ItemsSection({ lines, onChange, supplyType, problem }: { lines: 
           const failed = problem?.key === line.key ? problem.message : null;
           const showRate = exempt ? 0 : line.taxRate;
           return (
-            <FormCard key={line.key}>
+            <ScrollAnchor key={line.key} name={`line:${line.key}`}>
+            <FormCard>
               <View style={styles.lineHead}>
                 <Text style={styles.lineTitle}>Item {index + 1}</Text>
                 <View style={styles.lineActions}>
@@ -214,6 +222,7 @@ export function ItemsSection({ lines, onChange, supplyType, problem }: { lines: 
                 ) : null}
               </View>
             </FormCard>
+            </ScrollAnchor>
           );
         })}
         <Button title="Add item" tone="secondary" onPress={() => onChange([...lines, newLine()])} />
@@ -222,7 +231,7 @@ export function ItemsSection({ lines, onChange, supplyType, problem }: { lines: 
       <PartSheet
         visible={pickingKey !== null}
         selectedId={lines.find((l) => l.key === pickingKey)?.partId}
-        onPick={(part) => pickingKey && update(pickingKey, (l) => withPart(l, part, fallbackRate))}
+        onPick={(part) => pickingKey && update(pickingKey, (l) => applyPart(l, part, fallbackRate))}
         onNew={
           canCreatePart
             ? () => {
@@ -240,11 +249,11 @@ export function ItemsSection({ lines, onChange, supplyType, problem }: { lines: 
           <PartForm
             key={quick.id ?? 'new'}
             id={quick.id}
-            back="Quotation"
+            back={back}
             onCancel={() => setQuick(null)}
             onDone={(saved) => {
               // The line takes the part as saved (its name, unit, price and GST), as on the web.
-              update(quick.key, (l) => withPart(l, saved, fallbackRate));
+              update(quick.key, (l) => applyPart(l, saved, fallbackRate));
               void queryClient.invalidateQueries({ queryKey: ['quotation-parts'] });
               setQuick(null);
             }}

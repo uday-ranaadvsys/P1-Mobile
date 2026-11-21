@@ -273,7 +273,7 @@ export function PartyForm({ id, back, onDone, onCancel, lockKind }: { id?: strin
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.background }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled">
-        <ScreenTitle back={back} onBack={onCancel} title={lockKind ? (editing ? 'Edit Customer' : 'New Customer') : editing ? 'Edit Vendor / Customer' : 'New Vendor / Customer'} />
+        <ScreenTitle back={back} onBack={onCancel} title={lockKind ? `${editing ? 'Edit' : 'New'} ${PARTY_TYPE_LABEL[lockKind] ?? lockKind}` : editing ? 'Edit Vendor / Customer' : 'New Vendor / Customer'} />
         <ErrorBanner message={banner} />
 
         <View>

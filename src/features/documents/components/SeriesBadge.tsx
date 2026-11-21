@@ -4,16 +4,16 @@ import { ActivityIndicator, Alert, Pressable, StyleSheet, View } from 'react-nat
 import { Text } from '@/components/AppText';
 import { OptionSheet } from '@/components/OptionSheet';
 import { spacing, type, useColors, useThemed, type Colors } from '@/theme';
-import type { SeriesOption } from '../api';
+import type { SeriesOption } from '@/features/documents/api';
 
 /**
  * The number the Quotation will get and its numbering series, at the right of the screen's title (the web puts them
  * beside the title too). Tap the series to change it; with none set up it says so.
- * `number`: the Quotation's own number when it has one (editing); `locked`: it is numbered, so its series is fixed.
+ * `docName`: what the document is called (Quotation, Purchase Order). `number`: its own number when it has one (editing); `locked`: it is numbered, so its series is fixed.
  */
-export function SeriesBadge({ options, loading, failed, value, onChange, number, locked }: {
+export function SeriesBadge({ options, loading, failed, value, onChange, number, locked, docName = 'Quotation' }: {
   options: SeriesOption[] | undefined; loading: boolean; failed: boolean; value: string | null; onChange: (seriesId: string) => void;
-  number?: string; locked?: boolean;
+  number?: string; locked?: boolean; docName?: string;
 }) {
   const styles = useThemed(makeStyles);
   const colors = useColors();
@@ -24,7 +24,7 @@ export function SeriesBadge({ options, loading, failed, value, onChange, number,
   if (locked && number) {
     return (
       <View style={styles.wrap}>
-        <Text style={styles.number} numberOfLines={1} accessibilityLabel={`Quotation number ${number}`}>{number}</Text>
+        <Text style={styles.number} numberOfLines={1} accessibilityLabel={`${docName} number ${number}`}>{number}</Text>
       </View>
     );
   }
@@ -44,7 +44,7 @@ export function SeriesBadge({ options, loading, failed, value, onChange, number,
   const shownNumber = number ?? chosen?.nextNumber ?? '—';
   return (
     <View style={styles.wrap}>
-      <Text style={styles.number} numberOfLines={1} accessibilityLabel={`Quotation number ${shownNumber}`}>{shownNumber}</Text>
+      <Text style={styles.number} numberOfLines={1} accessibilityLabel={`${docName} number ${shownNumber}`}>{shownNumber}</Text>
       <Pressable
         onPress={() => options.length > 1 && setOpen(true)}
         disabled={options.length <= 1}

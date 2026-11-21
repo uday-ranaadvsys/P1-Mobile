@@ -27,6 +27,20 @@ export function ErrorBanner({ message }: { message: string | null }) {
   );
 }
 
+/** An address or value shown as a plain box (nothing to choose): the party's only address, or "Fills in after you pick…". */
+export function ReadOnlyField({ label, text, empty }: { label: string; text: string; empty?: boolean }) {
+  const styles = useThemed(makeStyles);
+  const colors = useColors();
+  return (
+    <View style={{ gap: spacing.xs }}>
+      <Text style={styles.readLabel}>{label}</Text>
+      <View style={[styles.readBox, { backgroundColor: colors.background }]}>
+        <Text style={[styles.readText, empty && { color: colors.placeholder }]} numberOfLines={3}>{text}</Text>
+      </View>
+    </View>
+  );
+}
+
 /** A notice at the top of a form (returned for changes, editing an approved document, cloned from): a title and what to do. */
 export function NoticeBanner({ title, body, tone = 'neutral' }: { title: string; body?: string | null; tone?: 'neutral' | 'warn' | 'danger' }) {
   const styles = useThemed(makeStyles);
@@ -95,6 +109,9 @@ const makeStyles = (c: Colors) =>
     banner: { borderWidth: 1, borderRadius: 12, padding: spacing.md },
     bannerText: { ...type.subhead },
     noticeTitle: { ...type.subhead, fontWeight: '700' },
+    readLabel: { ...type.subhead, fontWeight: '600', color: c.ink },
+    readBox: { minHeight: 48, justifyContent: 'center', borderWidth: 1, borderColor: c.outline, borderRadius: 12, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+    readText: { ...type.body, color: c.ink },
     switchRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 44 },
     switchLabel: { ...type.body, color: c.ink },
     help: { ...type.footnote, color: c.muted },

@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { DEDUCTION_KIND, DOCUMENT_EDIT_TEXT, SYSTEM_DEFAULTS } from 'floman-shared/constants';
 import { isDraftNumber } from 'floman-shared/documentNumber';
+import { DOCUMENT_TYPE } from 'floman-shared/documentTypes';
 import { isZeroRatedSupply } from 'floman-shared/gst';
 import { PERMISSIONS } from 'floman-shared/permissions';
 import { QUOTATION_STATUS, QUOTED_QUOTATION_STATUSES } from 'floman-shared/statuses';
@@ -10,6 +11,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { Button } from '@/components/Button';
 import { ErrorBanner, NoticeBanner } from '@/components/FormParts';
+import { FormScrollProvider, useFormScroll } from '@/components/FormScroll';
 import { Centered } from '@/components/Screen';
 import { ScreenTitle } from '@/components/ScreenTitle';
 import { ErrorText } from '@/components/Text';
@@ -18,14 +20,14 @@ import { getParty, type Party } from '@/features/parties/api';
 import { createQuotation, getQuotation, updateQuotation } from '@/features/quotations/api';
 import { HeaderSection } from '@/features/quotations/components/HeaderSection';
 import { ItemsSection } from '@/features/quotations/components/ItemsSection';
-import { SeriesBadge } from '@/features/quotations/components/SeriesBadge';
+import { SeriesBadge } from '@/features/documents/components/SeriesBadge';
 import { SummaryCard } from '@/features/quotations/components/SummaryCard';
 import { buildPayload, formFromQuotation, headerErrors, lineProblem, newHeader, newLine, priced, type FormLine, type HeaderErrors, type QuotationHeader } from '@/features/quotations/form';
 import { partRatesForZeroLines } from '@/features/quotations/partRates';
 import { personName } from '@/features/quotations/text';
-import { useCustomFieldDefs } from '@/features/quotations/useCustomFieldDefs';
+import { useCustomFieldDefs } from '@/features/documents/useCustomFieldDefs';
 import { liveMadeFrom } from '@/features/quotations/useQuotationActions';
-import { useQuotationSeries } from '@/features/quotations/useQuotationSeries';
+import { useDocumentSeries } from '@/features/documents/useDocumentSeries';
 import { DeductionCard } from '@/features/tax/DeductionCard';
 import { useDocumentDeductions } from '@/features/tax/useDocumentDeductions';
 import { notify } from '@/lib/notify';
@@ -61,8 +63,7 @@ export default function QuotationForm() {
   const styles = useThemed(makeStyles);
   const colors = useColors();
   const { can } = useSession();
-  // The ScrollView's own type does not expose scrollTo in this React Native version, so only what is used is typed.
-  const scroll = useRef<{ scrollTo: (to: { y: number; animated?: boolean }) => void } | null>(null);
+  const form = useFormScroll();
 
   const [header, setHeader] = useState<QuotationHeader>(newHeader);
   const [lines, setLines] = useState<FormLine[]>(() => [newLine()]);
@@ -74,8 +75,8 @@ export default function QuotationForm() {
   // A new Quotation is ready at once; one to edit or copy once it has been read.
   const [ready, setReady] = useState(!sourceId);
 
-  const { fields } = useCustomFieldDefs();
-  const series = useQuotationSeries(header.billingLocationId);
+  const { fields } = useCustomFieldDefs(DOCUMENT_TYPE.QUOTATION);
+  const series = useDocumentSeries(DOCUMENT_TYPE.QUOTATION, header.billingLocationId);
   const chosenSeries = series.data?.find((o) => o.id === header.seriesId) ?? null;
   const deductions = useDocumentDeductions({ kinds: TCS_BOX, vendorId: header.party?.id ?? null, date: header.issueDate || null });
   // Exactly one of the two: who may approve saves it approved, anyone else submits it for approval.
@@ -209,7 +210,7 @@ export default function QuotationForm() {
     },
     onError: (e) => {
       setBanner(message(e));
-      scroll.current?.scrollTo({ y: 0, animated: true });
+      form.toTop();
     },
   });
 
@@ -221,15 +222,19 @@ export default function QuotationForm() {
     setErrors(head);
     setProblem(null);
     setBanner(null);
-    const first =
-      head.party ?? head.issueDate ?? head.validityDate ?? (head.custom ? Object.values(head.custom)[0] : undefined) ??
-      (lineFail ? lineFail.message : undefined) ??
-      (!editing && !header.seriesId ? 'Document numbering series is not configured for Quotations. Please configure it first.' : undefined) ??
-      deductions.missingMessage ?? undefined;
-    if (first) {
-      if (lineFail) setProblem(lineFail);
-      setBanner(first);
-      scroll.current?.scrollTo({ y: 0, animated: true });
+    // A mistake in a field is shown at that field (the screen scrolls to it); only what has no field of its own goes in the banner.
+    if (lineFail) setProblem(lineFail);
+    const customKey = head.custom ? Object.keys(head.custom)[0] : undefined;
+    const anchor = head.party ? 'party' : head.issueDate ? 'issueDate' : head.validityDate ? 'validityDate' : customKey ? `custom:${customKey}` : lineFail ? `line:${lineFail.key}` : null;
+    if (anchor) {
+      form.scrollTo(anchor);
+      return;
+    }
+    const noField =
+      (!editing && !header.seriesId ? 'Document numbering series is not configured for Quotations. Please configure it first.' : undefined) ?? deductions.missingMessage ?? undefined;
+    if (noField) {
+      setBanner(noField);
+      form.toTop();
       return;
     }
     save.mutate(status);
@@ -252,7 +257,8 @@ export default function QuotationForm() {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.background }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView ref={scroll as never} contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled">
+      <FormScrollProvider value={form.api}>
+      <ScrollView ref={form.scrollRef as never} contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled">
         <ScreenTitle
           back={editing ? 'Back' : 'Quotations'}
           title={editing ? 'Edit Quotation' : 'New Quotation'}
@@ -304,6 +310,7 @@ export default function QuotationForm() {
           <DeductionCard deductions={deductions} values={totals.values} amounts={totals.deductions} />
         </HeaderSection>
       </ScrollView>
+      </FormScrollProvider>
       <View style={styles.bar}>
         {/* Edited after approval: it goes for approval again, never back to Draft. */}
         {wasApproved ? null : (

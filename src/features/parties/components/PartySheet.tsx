@@ -8,14 +8,18 @@ import { listParties, type Party } from '@/features/parties/api';
 import { PARTY_TYPE } from 'floman-shared/constants';
 import { gstinText, PARTY_TYPE_LABEL, placeLine } from '@/features/parties/text';
 import { useHide } from '@/lib/privacy';
-import { radius, spacing, type, useColors, useThemed, type Colors } from '@/theme';
+import { linkIndigo, radius, spacing, type, useColors, useThemed, type Colors } from '@/theme';
 
 const LIMIT = 50;
 
-/** A bottom sheet to pick the customer: active customers, searched on the server as you type. */
-export function CustomerSheet({ visible, selectedId, onPick, onNew, onClose }: {
-  visible: boolean; selectedId?: string; onPick: (party: Party) => void; onClose: () => void;
-  /** "New customer": one that is not in Vendors & Customers yet (only for someone who may create them). */
+/**
+ * A bottom sheet to pick a customer or vendor (`title`): active parties, searched on the server as you type. `type`
+ * limits it to one kind; none asks for all and the server limits the list to the user's side (someone with
+ * Vendors: Read, such as an Admin, gets both).
+ */
+export function PartySheet({ visible, title, type: partyType, selectedId, onPick, onNew, onClose }: {
+  visible: boolean; title: string; type?: string; selectedId?: string; onPick: (party: Party) => void; onClose: () => void;
+  /** "New customer" / "New vendor": one that is not in Vendors & Customers yet (only for someone who may create them). */
   onNew?: () => void;
 }) {
   const styles = useThemed(makeStyles);
@@ -30,9 +34,9 @@ export function CustomerSheet({ visible, selectedId, onPick, onNew, onClose }: {
   }, [typed]);
 
   const query = useQuery({
-    queryKey: ['quotation-customers', search],
+    queryKey: ['party-picker', partyType ?? 'all', search],
     // No type is asked for: the server limits the list to the user's side (someone with Vendors: Read, such as an Admin, gets both).
-    queryFn: () => listParties(1, LIMIT, { status: 'active', search: search || undefined, sort: 'NAME' }),
+    queryFn: () => listParties(1, LIMIT, { type: partyType, status: 'active', search: search || undefined, sort: 'NAME' }),
     enabled: visible,
     placeholderData: keepPreviousData,
   });
@@ -50,7 +54,7 @@ export function CustomerSheet({ visible, selectedId, onPick, onNew, onClose }: {
         <Pressable style={styles.backdrop} onPress={close} accessibilityLabel="Close" />
         <View style={styles.sheet}>
           <View style={styles.head}>
-            <Text style={styles.title}>Customer</Text>
+            <Text style={styles.title}>{title}</Text>
             <Pressable onPress={close} hitSlop={8} accessibilityRole="button" style={styles.close}>
               <Text style={styles.closeText}>Close</Text>
             </Pressable>
@@ -60,12 +64,12 @@ export function CustomerSheet({ visible, selectedId, onPick, onNew, onClose }: {
             <TextInput
               value={typed}
               onChangeText={setTyped}
-              placeholder="Search customers…"
+              placeholder={`Search ${title.toLowerCase()}s…`}
               placeholderTextColor={colors.placeholder}
               style={styles.searchInput}
               autoCorrect={false}
               autoCapitalize="none"
-              accessibilityLabel="Search customers"
+              accessibilityLabel={`Search ${title.toLowerCase()}s`}
             />
             {query.isFetching ? <ActivityIndicator size="small" color={colors.muted} /> : null}
           </View>
@@ -78,8 +82,8 @@ export function CustomerSheet({ visible, selectedId, onPick, onNew, onClose }: {
               accessibilityRole="button"
               style={({ pressed }) => [styles.newRow, pressed && { opacity: 0.6 }]}
             >
-              <Ionicons name="add-circle-outline" size={22} color={colors.brandText} />
-              <Text style={[styles.newText, { color: colors.brandText }]}>New customer</Text>
+              <Ionicons name="add-circle-outline" size={22} color={linkIndigo} />
+              <Text style={[styles.newText, { color: linkIndigo }]}>New {title.toLowerCase()}</Text>
             </Pressable>
           ) : null}
           <FlatList
@@ -108,7 +112,7 @@ export function CustomerSheet({ visible, selectedId, onPick, onNew, onClose }: {
                 {item.id === selectedId ? <Ionicons name="checkmark" size={20} color={colors.brandText} /> : null}
               </Pressable>
             )}
-            ListEmptyComponent={query.isLoading ? <ActivityIndicator style={{ margin: spacing.lg }} color={colors.brandText} /> : <Text style={styles.empty}>{query.error ? 'Could not load customers.' : 'No customers match.'}</Text>}
+            ListEmptyComponent={query.isLoading ? <ActivityIndicator style={{ margin: spacing.lg }} color={colors.brandText} /> : <Text style={styles.empty}>{query.error ? `Could not load ${title.toLowerCase()}s.` : `No ${title.toLowerCase()}s match.`}</Text>}
             ListFooterComponent={total > rows.length ? <Text style={styles.empty}>Showing {rows.length} of {total}. Type to find the rest.</Text> : undefined}
           />
         </View>

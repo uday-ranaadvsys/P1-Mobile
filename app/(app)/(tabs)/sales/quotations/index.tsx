@@ -13,7 +13,7 @@ import { ScreenTitle } from '@/components/ScreenTitle';
 import { ErrorText } from '@/components/Text';
 import { listQuotations, type QuotationStats } from '@/features/quotations/api';
 import { QuotationFilterSheet, DEFAULT_QUOTATION_FILTERS, SORT_OPTIONS, activeFilterCount, type QuotationFilterState } from '@/features/quotations/components/QuotationFilterSheet';
-import { CustomerSheet } from '@/features/quotations/components/CustomerSheet';
+import { PartySheet } from '@/features/parties/components/PartySheet';
 import { QuotationRow } from '@/features/quotations/components/QuotationRow';
 import { useQuotationActions } from '@/features/quotations/useQuotationActions';
 import { useHide } from '@/lib/privacy';
@@ -228,7 +228,7 @@ export default function Quotations() {
         }}
         onClose={() => setFilterSheet(false)}
       />
-      <CustomerSheet visible={customerSheet} selectedId={filters.customer?.id} onPick={(p) => setFilters({ ...filters, customer: { id: p.id, name: p.name } })} onClose={() => setCustomerSheet(false)} />
+      <PartySheet visible={customerSheet} title="Customer" selectedId={filters.customer?.id} onPick={(p) => setFilters({ ...filters, customer: { id: p.id, name: p.name } })} onClose={() => setCustomerSheet(false)} />
       {actions.sheets}
       <OptionSheet visible={sortSheet} title="Sort" options={SORT_OPTIONS} value={filters.sort} onSelect={(sort) => setFilters({ ...filters, sort })} onClose={() => setSortSheet(false)} />
     </>
