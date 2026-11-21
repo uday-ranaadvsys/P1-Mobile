@@ -1,4 +1,4 @@
-import { PO_STATUS, RECEIVABLE_PO_STATUSES } from 'floman-shared/statuses';
+import { GRN_STATUS, PO_STATUS, RECEIVABLE_PO_STATUSES } from 'floman-shared/statuses';
 import { daysAgo } from '@/lib/format';
 import type { PurchaseOrder } from './api';
 
@@ -27,3 +27,7 @@ export const daysLate = (po: Pick<PurchaseOrder, 'status' | 'deliveryDueDate'>) 
 
 /** "3 days late" / "1 day late". */
 export const lateText = (days: number) => `${days} ${days === 1 ? 'day' : 'days'} late`;
+
+/** Its GRNs that are not cancelled (drafts too): its Cancel waits for them, and its vendor stays. */
+export const liveGrns = (po: Pick<PurchaseOrder, 'grns'>): string[] =>
+  (po.grns ?? []).filter((g) => g.status !== GRN_STATUS.CANCELLED).map((g) => g.grnNumber).filter(Boolean);

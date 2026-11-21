@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { keepPreviousData, useInfiniteQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { LIST_FILTER, PAGINATION } from 'floman-shared/constants';
+import { LIST_FILTER, PAGINATION, PARTY_TYPE } from 'floman-shared/constants';
 import { PO_STATUS } from 'floman-shared/statuses';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, TextInput, View } from 'react-native';
@@ -11,10 +11,13 @@ import { OptionSheet } from '@/components/OptionSheet';
 import { Centered } from '@/components/Screen';
 import { ScreenTitle } from '@/components/ScreenTitle';
 import { ErrorText } from '@/components/Text';
+import { PartySheet } from '@/features/parties/components/PartySheet';
 import { listPurchaseOrders, type PurchaseOrderStats } from '@/features/purchase-orders/api';
 import { PurchaseOrderFilterSheet, DEFAULT_PURCHASE_ORDER_FILTERS, SORT_OPTIONS, activeFilterCount, type PurchaseOrderFilterState } from '@/features/purchase-orders/components/PurchaseOrderFilterSheet';
 import { PurchaseOrderRow } from '@/features/purchase-orders/components/PurchaseOrderRow';
 import { statusLabel, TO_RECEIVE } from '@/features/purchase-orders/text';
+import { usePurchaseOrderActions } from '@/features/purchase-orders/usePurchaseOrderActions';
+import { useHide } from '@/lib/privacy';
 import { spacing, type, useColors, useThemed, type Colors } from '@/theme';
 
 /** The status pills, in the order a Purchase Order moves (All first), with the counts the web's cards show. */
@@ -45,6 +48,10 @@ export default function PurchaseOrders() {
   const [filters, setFilters] = useState<PurchaseOrderFilterState>(DEFAULT_PURCHASE_ORDER_FILTERS);
   const [filterSheet, setFilterSheet] = useState(false);
   const [sortSheet, setSortSheet] = useState(false);
+  const [vendorSheet, setVendorSheet] = useState(false);
+  const hide = useHide();
+  // Long-press a row (or the dots on its detail): Edit, Duplicate, View history, Cancel, Restore.
+  const actions = usePurchaseOrderActions();
 
   // Search as you type (a moment after the last key).
   useEffect(() => {
@@ -63,6 +70,7 @@ export default function PurchaseOrders() {
         amount: filters.amount !== LIST_FILTER.ALL ? filters.amount : undefined,
         from: filters.from || undefined,
         to: filters.to || undefined,
+        vendorId: filters.vendor?.id,
       }),
     // Keep the list on screen while a new search loads, so typing in the search box is never interrupted.
     placeholderData: keepPreviousData,
@@ -145,6 +153,20 @@ export default function PurchaseOrders() {
         }}
       />
 
+      {filters.vendor ? (
+        <View style={styles.chipRow}>
+          <Pressable
+            onPress={() => setFilters({ ...filters, vendor: null })}
+            accessibilityRole="button"
+            accessibilityLabel={`Remove the vendor filter: ${filters.vendor.name}`}
+            style={({ pressed }) => [styles.filterChip, pressed && { opacity: 0.6 }]}
+          >
+            <Text style={styles.filterChipText} numberOfLines={1}>Vendor: {hide.text(filters.vendor.name)}</Text>
+            <Ionicons name="close" size={16} color={colors.muted} />
+          </Pressable>
+        </View>
+      ) : null}
+
       <View style={styles.meta}>
         <Text style={styles.metaText}>
           {matching} {matching === 1 ? 'purchase order' : 'purchase orders'} · <Text style={styles.metaBold}>{label(status)}</Text>
@@ -177,7 +199,9 @@ export default function PurchaseOrders() {
         keyExtractor={(po) => po.id}
         ListHeaderComponent={header}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
-        renderItem={({ item }) => <PurchaseOrderRow order={item} onOpen={() => router.push({ pathname: '/purchase/purchase-orders/[id]', params: { id: item.id } })} />}
+        renderItem={({ item }) => (
+          <PurchaseOrderRow order={item} onOpen={() => router.push({ pathname: '/purchase/purchase-orders/[id]', params: { id: item.id } })} onActions={() => actions.open(item)} />
+        )}
         ListEmptyComponent={
           <View style={styles.empty}>
             <Text style={styles.emptyTitle}>No Purchase Order Records Found</Text>
@@ -192,7 +216,19 @@ export default function PurchaseOrders() {
         keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={query.isRefetching && !query.isFetchingNextPage} onRefresh={() => void query.refetch()} tintColor={colors.brandText} />}
       />
-      <PurchaseOrderFilterSheet visible={filterSheet} value={filters} onChange={setFilters} onClose={() => setFilterSheet(false)} />
+      <PurchaseOrderFilterSheet
+        visible={filterSheet}
+        value={filters}
+        onChange={setFilters}
+        // The vendor list opens once this sheet has closed (a phone can't show two at once).
+        onPickVendor={() => {
+          setFilterSheet(false);
+          setTimeout(() => setVendorSheet(true), 400);
+        }}
+        onClose={() => setFilterSheet(false)}
+      />
+      <PartySheet visible={vendorSheet} title="Vendor" type={PARTY_TYPE.VENDOR} selectedId={filters.vendor?.id} onPick={(p) => setFilters({ ...filters, vendor: { id: p.id, name: p.name } })} onClose={() => setVendorSheet(false)} />
+      {actions.sheets}
       <OptionSheet visible={sortSheet} title="Sort" options={SORT_OPTIONS} value={filters.sort} onSelect={(sort) => setFilters({ ...filters, sort })} onClose={() => setSortSheet(false)} />
     </>
   );
@@ -212,6 +248,9 @@ const makeStyles = (c: Colors) =>
     chip: { minHeight: 44, paddingHorizontal: spacing.md, borderRadius: 22, borderWidth: 1, borderColor: c.outline, backgroundColor: c.surface, justifyContent: 'center' },
     chipActive: { borderColor: c.brandText, backgroundColor: c.brandTint },
     chipText: { ...type.subhead, fontWeight: '600', color: c.ink },
+    chipRow: { flexDirection: 'row' },
+    filterChip: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, minHeight: 44, maxWidth: '100%', paddingHorizontal: spacing.md, borderRadius: 22, borderWidth: 1, borderColor: c.outline, backgroundColor: c.surface },
+    filterChipText: { ...type.subhead, fontWeight: '600', color: c.ink, flexShrink: 1 },
     meta: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', minHeight: 32 },
     metaText: { ...type.subhead, color: c.muted },
     metaBold: { color: c.ink, fontWeight: '700' },

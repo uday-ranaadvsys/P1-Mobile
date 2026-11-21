@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { DEDUCTION_KIND, DEDUCTION_KIND_LABEL, DEDUCTION_TEXT, DISCOUNT_TYPE, TODAY_GROUP } from 'floman-shared/constants';
@@ -16,6 +17,7 @@ import { ScreenTitle } from '@/components/ScreenTitle';
 import { ErrorText } from '@/components/Text';
 import { useSession } from '@/features/auth/session';
 import { getPurchaseOrder } from '@/features/purchase-orders/api';
+import { usePurchaseOrderActions } from '@/features/purchase-orders/usePurchaseOrderActions';
 import { StatusPill } from '@/features/purchase-orders/components/StatusPill';
 import { daysLate, lateText } from '@/features/purchase-orders/text';
 import { listCustomFields } from '@/features/quotations/api';
@@ -30,7 +32,8 @@ type Tab = (typeof TAB)[keyof typeof TAB];
 
 /**
  * One Purchase Order, as the web's side panel: the total, what to do next, then Items, Details, Linked documents and
- * History. Review opens the Approve / Return screen. Edit, the ⋯ actions, Create GRN and PDF come in the next steps.
+ * History. Review opens the Approve / Return screen; the ⋯ menu has Edit, Duplicate, Cancel and Restore. Create GRN and
+ * Share PDF come in the next steps.
  */
 export default function PurchaseOrderDetail() {
   const { id, tab: tabParam } = useLocalSearchParams<{ id: string; tab?: string }>();
@@ -40,6 +43,8 @@ export default function PurchaseOrderDetail() {
   const colors = useColors();
   const hide = useHide();
   const [tab, setTab] = useState<Tab>(tabParam === TAB.HISTORY ? TAB.HISTORY : TAB.ITEMS);
+  // The ⋯ menu: Edit, Duplicate, View history (this screen's own tab), Cancel, Restore.
+  const actions = usePurchaseOrderActions({ onHistory: () => setTab(TAB.HISTORY) });
 
   const { data: po, error, isLoading, refetch } = useQuery({ queryKey: ['purchase-order', id], queryFn: () => getPurchaseOrder(id!) });
   const fields = useQuery({ queryKey: ['custom-fields', DOCUMENT_TYPE.PURCHASE_ORDER], queryFn: () => listCustomFields(DOCUMENT_TYPE.PURCHASE_ORDER), retry: false });
@@ -128,7 +133,12 @@ export default function PurchaseOrderDetail() {
         <ScreenTitle back="Purchase Orders" />
 
         <View style={{ gap: spacing.xs }}>
-          <Text style={styles.number} accessibilityRole="header">{po.poNumber}</Text>
+          <View style={styles.numberRow}>
+            <Text style={[styles.number, { flex: 1 }]} accessibilityRole="header">{po.poNumber}</Text>
+            <Pressable onPress={() => actions.open(po)} accessibilityRole="button" accessibilityLabel="Actions" style={({ pressed }) => [styles.more, pressed && { opacity: 0.6 }]}>
+              <Ionicons name="ellipsis-horizontal" size={22} color={colors.ink} />
+            </Pressable>
+          </View>
           <StatusPill status={po.status} edited={Boolean(po.editedAt)} />
           <Text style={styles.sub}>
             Dated {formatDate(po.orderDate)}
@@ -149,6 +159,10 @@ export default function PurchaseOrderDetail() {
             <Text style={styles.nextTitle}>{nextStep.title}</Text>
             {nextStep.body ? <Text style={styles.sub}>{nextStep.body}</Text> : null}
           </View>
+        ) : null}
+
+        {can(PERMISSIONS.PURCHASE_ORDERS.UPDATE) && (po.status === PO_STATUS.DRAFT || po.status === PO_STATUS.RETURNED) ? (
+          <Button title="Edit" tone={reviewable ? 'secondary' : 'primary'} onPress={() => router.push({ pathname: '/purchase/purchase-orders/edit', params: { id: po.id } })} />
         ) : null}
 
         {reviewable ? (
@@ -315,6 +329,7 @@ export default function PurchaseOrderDetail() {
 
         {tab === TAB.HISTORY ? <HistoryTimeline entries={po.auditLogs ?? []} /> : null}
       </ScrollView>
+      {actions.sheets}
     </View>
   );
 }
@@ -333,6 +348,8 @@ const makeStyles = (c: Colors) =>
   StyleSheet.create({
     page: { padding: spacing.md, gap: spacing.lg, paddingBottom: spacing.lg * 2 },
     number: { ...type.title1, color: c.ink },
+    numberRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+    more: { width: 44, height: 44, borderRadius: 12, borderWidth: 1, borderColor: c.outline, backgroundColor: c.surface, alignItems: 'center', justifyContent: 'center' },
     sub: { ...type.subhead, color: c.muted },
     body: { ...type.body, color: c.ink },
     small: { ...type.footnote, color: c.muted },

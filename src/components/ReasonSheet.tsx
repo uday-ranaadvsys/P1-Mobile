@@ -11,11 +11,13 @@ import { spacing, type, useColors, useThemed, type Colors } from '@/theme';
  * A confirmation that asks for a reason (the web's Cancel and Restore boxes): a title, what will happen, the reason
  * (optional, with a few quick choices), and two buttons. The server's refusal is shown inside it.
  */
-export function ReasonSheet({ visible, title, description, label, placeholder, suggestions = [], confirmText, cancelText, tone = 'primary', busy, error, extra, onConfirm, onClose }: {
+export function ReasonSheet({ visible, title, description, label, placeholder, suggestions = [], confirmText, cancelText, tone = 'primary', busy, error, extra, required, onConfirm, onClose }: {
   visible: boolean; title: string; description: string; label: string; placeholder: string; suggestions?: readonly string[];
   confirmText: string; cancelText: string; tone?: ButtonTone; busy: boolean; error: string | null;
   /** Anything to show under the description (the "Edit instead" link). */
   extra?: ReactNode;
+  /** A reason must be typed before the confirm button works. */
+  required?: boolean;
   onConfirm: (reason: string) => void; onClose: () => void;
 }) {
   const styles = useThemed(makeStyles);
@@ -48,7 +50,7 @@ export function ReasonSheet({ visible, title, description, label, placeholder, s
           </ScrollView>
           <View style={styles.buttons}>
             <Button title={cancelText} tone="secondary" style={{ flex: 1 }} onPress={onClose} disabled={busy} />
-            <Button title={confirmText} tone={tone} style={{ flex: 1 }} onPress={() => onConfirm(reason.trim())} busy={busy} />
+            <Button title={confirmText} tone={tone} style={{ flex: 1 }} onPress={() => onConfirm(reason.trim())} busy={busy} disabled={Boolean(required) && !reason.trim()} />
           </View>
         </View>
       </KeyboardAvoidingView>

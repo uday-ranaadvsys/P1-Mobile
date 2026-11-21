@@ -1,29 +1,35 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useNavigation, useRouter } from 'expo-router';
-import { DEDUCTION_KIND_ORDER, DEDUCTION_SIDE, SYSTEM_DEFAULTS } from 'floman-shared/constants';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
+import { DEDUCTION_KIND_ORDER, DEDUCTION_SIDE, DOCUMENT_EDIT_TEXT, SYSTEM_DEFAULTS } from 'floman-shared/constants';
+import { isDraftNumber } from 'floman-shared/documentNumber';
 import { DOCUMENT_TYPE } from 'floman-shared/documentTypes';
 import { isUnregistered, SUPPLY_TYPE } from 'floman-shared/gst';
 import { PERMISSIONS } from 'floman-shared/permissions';
-import { PO_STATUS } from 'floman-shared/statuses';
+import { PO_STATUS, SPEND_PO_STATUSES } from 'floman-shared/statuses';
 import { documentTotalsWithDeductions } from 'floman-shared/taxDeduction';
 import { useEffect, useRef, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { Button } from '@/components/Button';
-import { ErrorBanner } from '@/components/FormParts';
+import { ErrorBanner, NoticeBanner } from '@/components/FormParts';
 import { FormScrollProvider, useFormScroll } from '@/components/FormScroll';
+import { Centered } from '@/components/Screen';
 import { ScreenTitle } from '@/components/ScreenTitle';
+import { ErrorText } from '@/components/Text';
 import { useSession } from '@/features/auth/session';
 import { SeriesBadge } from '@/features/documents/components/SeriesBadge';
 import { useCustomFieldDefs } from '@/features/documents/useCustomFieldDefs';
 import { useDocumentSeries } from '@/features/documents/useDocumentSeries';
 import { getPartMeta } from '@/features/parts/api';
-import { createPurchaseOrder } from '@/features/purchase-orders/api';
+import { getParty, type Party } from '@/features/parties/api';
+import { createPurchaseOrder, getPurchaseOrder, updatePurchaseOrder } from '@/features/purchase-orders/api';
 import { HeaderSection } from '@/features/purchase-orders/components/HeaderSection';
-import { buildPayload, headerErrors, lineProblem, newHeader, withPurchasePart, zeroRated, type HeaderErrors, type PurchaseOrderHeader } from '@/features/purchase-orders/form';
+import { buildPayload, formFromPurchaseOrder, headerErrors, lineProblem, newHeader, withPurchasePart, zeroRated, type HeaderErrors, type PurchaseOrderHeader } from '@/features/purchase-orders/form';
 import { partRatesForLines } from '@/features/purchase-orders/partRates';
+import { liveGrns } from '@/features/purchase-orders/text';
 import { ItemsSection } from '@/features/quotations/components/ItemsSection';
 import { SummaryCard } from '@/features/quotations/components/SummaryCard';
 import { newLine, priced, type FormLine } from '@/features/quotations/form';
+import { personName } from '@/features/quotations/text';
 import { DeductionCard } from '@/features/tax/DeductionCard';
 import { useDocumentDeductions } from '@/features/tax/useDocumentDeductions';
 import { notify } from '@/lib/notify';
@@ -32,11 +38,20 @@ import { spacing, useColors, useThemed, type Colors } from '@/theme';
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /**
- * New Purchase Order, in the web's order: number and series (in the title), our places, Vendor & dates (with the custom
- * fields), Items, TDS / TCS, Notes & terms, Summary. Save Draft, and Save & Approve (for someone who may approve) or
- * Submit for Approval. Leaving with changes asks first. Edit, Duplicate and Cancel come in the next step.
+ * One form for a Purchase Order, in the web's order: number and series (in the title), our places, Vendor & dates (with
+ * the custom fields), Items, TDS / TCS, Notes & terms, Summary.
+ *  - New: nothing chosen yet.
+ *  - Edit (`id`): a Draft, a returned one, or an approved one (same number; it goes for approval again, never back to
+ *    Draft). Once a GRN is made from it, or it came from a Purchase Indent, its vendor stays.
+ *  - Duplicate (`duplicateFrom`): a copy of an approved or answered one, with a new number and new dates.
+ * Save Draft, and Save & Approve (for someone who may approve) or Submit / Resubmit for Approval. Leaving with changes
+ * asks first.
  */
 export default function PurchaseOrderForm() {
+  const { id, duplicateFrom } = useLocalSearchParams<{ id?: string; duplicateFrom?: string }>();
+  const editing = Boolean(id);
+  const duplicating = !id && Boolean(duplicateFrom);
+  const sourceId = id ?? duplicateFrom;
   const router = useRouter();
   const navigation = useNavigation() as unknown as {
     addListener: (type: 'beforeRemove', listener: (e: { preventDefault: () => void; data: { action: unknown } }) => void) => () => void;
@@ -55,14 +70,68 @@ export default function PurchaseOrderForm() {
   const [errors, setErrors] = useState<HeaderErrors>({});
   const [problem, setProblem] = useState<{ key: string; message: string } | null>(null);
   const [banner, setBanner] = useState<string | null>(null);
+  // A new order is ready at once; one to edit or copy once it has been read.
+  const [ready, setReady] = useState(!sourceId);
 
   const { fields } = useCustomFieldDefs(DOCUMENT_TYPE.PURCHASE_ORDER);
   const series = useDocumentSeries(DOCUMENT_TYPE.PURCHASE_ORDER, header.billingLocationId);
   const chosenSeries = series.data?.find((o) => o.id === header.seriesId) ?? null;
   // A purchase has all three boxes: TCS, GST-TDS and TDS.
-  const deductions = useDocumentDeductions({ kinds: DEDUCTION_KIND_ORDER, side: DEDUCTION_SIDE.PURCHASE, vendorId: header.party?.id ?? null, date: header.orderDate || null });
+  const deductions = useDocumentDeductions({ kinds: DEDUCTION_KIND_ORDER, side: DEDUCTION_SIDE.PURCHASE, vendorId: header.party?.id ?? null, date: header.orderDate || null, excludeId: id ?? null });
+  // Exactly one of the two: who may approve saves it approved, anyone else submits it for approval.
   const canApprove = can(PERMISSIONS.PURCHASE_ORDERS.APPROVE);
   const unregistered = isUnregistered(header.party);
+
+  // ── The order being edited or copied ──
+  const source = useQuery({
+    queryKey: ['purchase-order-form', sourceId],
+    queryFn: async () => {
+      const po = await getPurchaseOrder(sourceId!);
+      // Its vendor with its places (someone without Vendors: Read gets the party as the order has it).
+      const party = po.vendor?.id ? await getParty(po.vendor.id).catch(() => po.vendor as unknown as Party) : null;
+      return { po, party };
+    },
+    enabled: Boolean(sourceId),
+    gcTime: 0,
+  });
+  const po = source.data?.po;
+  const hydrated = useRef(false);
+  useEffect(() => {
+    if (!source.data || hydrated.current) return;
+    hydrated.current = true;
+    const { po: saved, party } = source.data;
+    if (duplicating && saved.status === PO_STATUS.DRAFT) {
+      Alert.alert('Draft Purchase Orders cannot be duplicated', 'Only finalized or approved Purchase Orders can be duplicated.');
+      router.back();
+      return;
+    }
+    if (editing && saved.status === PO_STATUS.CANCELLED) {
+      Alert.alert('Cancelled', `Cannot edit CANCELLED Purchase Order "${saved.poNumber}". This document has been cancelled.`);
+      router.back();
+      return;
+    }
+    const f = formFromPurchaseOrder(saved, party, duplicating);
+    setHeader(f.header);
+    setLines(f.lines);
+    setExtraDiscount(f.extraDiscount);
+    setIsRoundOff(f.isRoundOff);
+    deductions.loadFrom(saved as unknown as Record<string, unknown>); // its TDS / TCS comes with it
+    setReady(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [source.data]);
+
+  // What kind of edit this is (the web's rules).
+  const editingApproved = editing && Boolean(po && SPEND_PO_STATUSES.includes(po.status));
+  const wasApproved = editingApproved || Boolean(editing && po?.editedAt);
+  const returned = editing && po?.status === PO_STATUS.RETURNED;
+  const madeFrom = editing && po ? liveGrns(po) : [];
+  // Once an approved order has GRNs (or came from a Purchase Indent), its vendor stays.
+  const vendorLock =
+    wasApproved && po && (madeFrom.length || po.purchaseIndentId)
+      ? madeFrom.length ? DOCUMENT_EDIT_TEXT.partyLockedBy('vendor', madeFrom) : DOCUMENT_EDIT_TEXT.partyLocked('Purchase Order', 'vendor')
+      : null;
+  // A numbered order keeps its number and series; a new one or a draft picks its series.
+  const numbered = editing && Boolean(po) && !isDraftNumber(po!.poNumber);
 
   // A place's own series: the default one is chosen when the list arrives (or Bill to changes).
   useEffect(() => {
@@ -79,7 +148,7 @@ export default function PurchaseOrderForm() {
   const baseline = useRef<string | null>(null);
   const leaving = useRef(false);
   useEffect(() => {
-    if (baseline.current === null) baseline.current = snapshot;
+    if (ready && baseline.current === null) baseline.current = snapshot;
   });
   const dirty = baseline.current !== null && baseline.current !== snapshot;
   useEffect(
@@ -123,17 +192,32 @@ export default function PurchaseOrderForm() {
   };
 
   const save = useMutation({
-    mutationFn: (status: string) =>
-      createPurchaseOrder(buildPayload({ header, status, sendSeries: true, lines, fields, extraDiscount, isRoundOff, deductions: deductions.payload() })),
+    mutationFn: (status: string) => {
+      const body = buildPayload({
+        header,
+        status,
+        poNumber: editing ? po?.poNumber : undefined,
+        sendSeries: !numbered,
+        lines,
+        fields,
+        extraDiscount,
+        isRoundOff,
+        deductions: deductions.payload(),
+      });
+      return editing ? updatePurchaseOrder(id!, body) : createPurchaseOrder(body);
+    },
     onSuccess: (saved, status) => {
       void queryClient.invalidateQueries({ queryKey: ['purchase-orders'] });
-      const number = saved?.poNumber ?? chosenSeries?.nextNumber ?? '';
+      if (id) void queryClient.invalidateQueries({ queryKey: ['purchase-order', id] });
+      const number = saved?.poNumber ?? po?.poNumber ?? chosenSeries?.nextNumber ?? '';
       notify(
-        status === PO_STATUS.DRAFT
-          ? `Purchase Order "${number}" saved as draft!`
-          : status === PO_STATUS.PENDING_APPROVAL
-            ? `Purchase Order "${number}" submitted for approval!`
-            : `Purchase Order "${number}" approved.`,
+        editing
+          ? `Purchase Order "${number}" updated successfully!`
+          : status === PO_STATUS.DRAFT
+            ? `Purchase Order "${number}" saved as draft!`
+            : status === PO_STATUS.PENDING_APPROVAL
+              ? `Purchase Order "${number}" submitted for approval!`
+              : `Purchase Order "${number}" approved.`,
       );
       leaving.current = true;
       router.back();
@@ -168,15 +252,27 @@ export default function PurchaseOrderForm() {
   };
 
   const approvalStatus = canApprove ? PO_STATUS.APPROVED : PO_STATUS.PENDING_APPROVAL;
+  const primaryLabel = canApprove ? 'Save & Approve' : returned ? 'Resubmit for Approval' : 'Submit for Approval';
   const pending = save.isPending ? save.variables : null;
+  const returnedBy = personName(po?.approvedBy);
+
+  if (sourceId && source.isLoading) return <Centered><ActivityIndicator color={colors.brandText} /></Centered>;
+  if (sourceId && (source.error || !source.data)) {
+    return (
+      <Centered>
+        <ErrorText message={message(source.error ?? 'Purchase Order not found')} />
+        <Button title="Try again" tone="secondary" onPress={() => void source.refetch()} />
+      </Centered>
+    );
+  }
 
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.background }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <FormScrollProvider value={form.api}>
       <ScrollView ref={form.scrollRef as never} contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled">
         <ScreenTitle
-          back="Purchase Orders"
-          title="New Purchase Order"
+          back={editing ? 'Back' : 'Purchase Orders'}
+          title={editing ? 'Edit Purchase Order' : 'New Purchase Order'}
           right={
             <SeriesBadge
               docName="Purchase Order"
@@ -185,14 +281,31 @@ export default function PurchaseOrderForm() {
               failed={Boolean(series.error)}
               value={header.seriesId}
               onChange={(seriesId) => change({ seriesId })}
+              number={editing ? po?.poNumber : undefined}
+              locked={numbered}
             />
           }
         />
+
+        {returned && po ? (
+          <NoticeBanner
+            tone="danger"
+            title={`Returned for changes${returnedBy ? ` · by ${returnedBy}` : ''}`}
+            body={`${po.approvalRemarks ? `“${po.approvalRemarks}”\n` : ''}Make the changes (see the remarks on the lines too), then press ${primaryLabel}.`}
+          />
+        ) : null}
+        {editingApproved && po ? <NoticeBanner tone="warn" title={DOCUMENT_EDIT_TEXT.editingTitle('Purchase Order', po.poNumber)} body={DOCUMENT_EDIT_TEXT.banner('purchase order', canApprove)} /> : null}
+        {duplicating && po ? (
+          <NoticeBanner title={`Cloned from PO: ${po.poNumber}`} body={chosenSeries ? `New draft created with sequential series: ${chosenSeries.nextNumber}` : null} />
+        ) : null}
         <ErrorBanner message={banner} />
+
         <HeaderSection
           value={header}
           onChange={change}
           errors={errors}
+          vendorLock={vendorLock}
+          billingLocked={numbered}
           footer={
             <SummaryCard totals={totals} exempt={false} extraDiscount={extraDiscount} onExtraDiscount={setExtraDiscount} isRoundOff={isRoundOff} onRoundOff={setIsRoundOff} purchase />
           }
@@ -213,8 +326,11 @@ export default function PurchaseOrderForm() {
       </ScrollView>
       </FormScrollProvider>
       <View style={styles.bar}>
-        <Button title="Save Draft" tone="secondary" style={{ flex: 1 }} onPress={() => submit(PO_STATUS.DRAFT)} busy={pending === PO_STATUS.DRAFT} disabled={save.isPending} />
-        <Button title={canApprove ? 'Save & Approve' : 'Submit for Approval'} style={{ flex: 1 }} onPress={() => submit(approvalStatus)} busy={pending === approvalStatus} disabled={save.isPending} />
+        {/* Edited after approval: it goes for approval again, never back to Draft. */}
+        {wasApproved ? null : (
+          <Button title="Save Draft" tone="secondary" style={{ flex: 1 }} onPress={() => submit(PO_STATUS.DRAFT)} busy={pending === PO_STATUS.DRAFT} disabled={save.isPending} />
+        )}
+        <Button title={primaryLabel} style={{ flex: 1 }} onPress={() => submit(approvalStatus)} busy={pending === approvalStatus} disabled={save.isPending} />
       </View>
     </KeyboardAvoidingView>
   );

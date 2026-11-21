@@ -1,5 +1,5 @@
 import { api, apiWithMessage, type Meta } from '@/api/client';
-import type { HistoryEntry } from '@/features/quotations/api';
+import type { EditBlock, HistoryEntry } from '@/features/quotations/api';
 
 type Person = { id?: string; firstName?: string | null; lastName?: string | null; email?: string | null };
 type PlaceCopy = { text?: string } | null;
@@ -69,6 +69,9 @@ export type PurchaseOrder = {
   supplyType?: string | null;
   isRoundOff?: boolean | null;
   seriesId?: string | null;
+  vendorId?: string;
+  /** Set when the order came from a Purchase Indent: its vendor then stays. */
+  purchaseIndentId?: string | null;
   billingAddressId?: string | null;
   billingLocationId?: string | null;
   shippingLocationId?: string | null;
@@ -122,3 +125,17 @@ export type PurchaseOrderPayload = Record<string, unknown>;
 
 /** Saves a new Purchase Order as a Draft, for approval, or approved (POST /purchase-orders). */
 export const createPurchaseOrder = (body: PurchaseOrderPayload) => api<PurchaseOrder>('/purchase-orders', { method: 'POST', body });
+
+/** Saves a Draft, a returned order or an approved one being edited (it goes for approval again): PUT /purchase-orders/:id. */
+export const updatePurchaseOrder = (id: string, body: PurchaseOrderPayload) => api<PurchaseOrder>(`/purchase-orders/${id}`, { method: 'PUT', body });
+
+/** Voids an order. The server refuses while a GRN made from it is live; `indentLines` says what happens to lines that came from indents. */
+export const cancelPurchaseOrder = (id: string, reason: string, indentLines: string) =>
+  api<PurchaseOrder>(`/purchase-orders/${id}/cancel`, { method: 'POST', body: { reason, indentLines } });
+
+/** A cancelled order back as a Draft with the same number (only while the company's lock is off). */
+export const restorePurchaseOrder = (id: string, reason: string) =>
+  apiWithMessage<PurchaseOrder>(`/purchase-orders/${id}/restore`, { method: 'POST', body: reason ? { reason } : {} });
+
+/** What stops Edit on an approved order (only the company's lock), asked before its form opens. */
+export const purchaseOrderEditCheck = async (id: string) => (await api<{ block: EditBlock | null }>(`/purchase-orders/${id}/edit-check`)).block;

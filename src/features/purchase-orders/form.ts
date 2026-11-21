@@ -1,10 +1,13 @@
+import { DISCOUNT_TYPE } from 'floman-shared/constants';
 import { partTaxRate } from 'floman-shared/gst';
+import { calculateWithTax } from 'floman-shared/priceConversion';
 import { toISODate } from '@/components/DateField';
 import type { Part } from '@/features/parts/api';
 import type { Party } from '@/features/parties/api';
 import { PRIMARY } from '@/features/parties/places';
-import { customPayload, withRate, withTaxRate, type FormLine } from '@/features/quotations/form';
+import { customPayload, newLine, withRate, withTaxRate, type FormLine } from '@/features/quotations/form';
 import type { CustomFieldDefinition } from '@/features/documents/api';
+import type { PurchaseOrder, PurchaseOrderItem } from './api';
 
 /** What a Purchase Order's payment terms start as (the web: 'Net 30 Days'; an emptied box falls back to it on save). */
 export const DEFAULT_PAYMENT_TERMS = 'Net 30 Days';
@@ -178,5 +181,70 @@ export function buildPayload(input: {
     status: input.status,
     customFields: customPayload(input.fields, h.customFields),
     items: input.lines.map(linePayload),
+  };
+}
+
+// ── A saved Purchase Order back into the form (Edit, Duplicate) ──────────────
+
+const day = (iso?: string | null) => (iso ? iso.slice(0, 10) : '');
+const shown = (value: number) => (value === 0 ? '' : String(Number(value.toFixed(2))));
+
+/** A saved line as a form line. `keep`: an edit keeps the line in place (and the approver's remark on it); a copy starts fresh. */
+export function lineFromItem(it: PurchaseOrderItem, keep: boolean): FormLine {
+  const rate = Number(it.unitPrice) || 0;
+  const taxRate = Number(it.taxRate) || 0;
+  const scope = it.partDescription || it.scopeOfWork || '';
+  return {
+    ...newLine(),
+    lineId: keep ? it.id : null,
+    approverRemarks: keep ? it.approverRemarks || null : null,
+    partId: it.partId ?? null,
+    partCode: it.partCode ?? null,
+    partName: it.partName,
+    hsn: it.hsn || '',
+    scope,
+    showSpecs: Boolean(scope),
+    qty: shown(Number(it.qty) || 0),
+    freeQty: shown(Number(it.freeQty) || 0),
+    uom: it.uom,
+    rate: shown(rate),
+    rateWithTax: shown(calculateWithTax(rate, taxRate)),
+    discount: shown(Number(it.discount) || 0),
+    discountType: it.discountType === DISCOUNT_TYPE.AMOUNT ? DISCOUNT_TYPE.AMOUNT : DISCOUNT_TYPE.PERCENTAGE,
+    taxRate,
+  };
+}
+
+/**
+ * What the form starts with from a saved order. An edit keeps everything. A copy (`duplicate`) keeps the vendor, lines,
+ * places and terms; the dates, the vendor's quote reference and the number are new (the order date is today).
+ */
+export function formFromPurchaseOrder(po: PurchaseOrder, party: Party | null, duplicate: boolean) {
+  const fresh = newHeader();
+  const header: PurchaseOrderHeader = {
+    party,
+    dispatchFromId: po.shippingAddressId || PRIMARY,
+    billingAddressId: po.billingAddressId ?? '',
+    billingLocationId: po.billingLocationId ?? '',
+    shippingLocationId: po.shippingLocationId ?? '',
+    seriesId: duplicate ? null : po.seriesId ?? null,
+    orderDate: duplicate ? fresh.orderDate : day(po.orderDate) || fresh.orderDate,
+    deliveryDueDate: duplicate ? '' : day(po.deliveryDueDate),
+    expectedDeliveryDate: duplicate ? '' : day(po.expectedDeliveryDate),
+    supplierQuote: duplicate ? '' : po.supplierQuote ?? '',
+    paymentTerms: po.paymentTerms || DEFAULT_PAYMENT_TERMS,
+    projectName: po.projectName ?? '',
+    projectCode: po.projectCode ?? '',
+    clientName: po.clientName ?? '',
+    notes: po.notes ?? '',
+    terms: po.terms ?? '',
+    customFields: { ...(po.customFields ?? {}) },
+  };
+  const lines = (po.items ?? []).map((it) => lineFromItem(it, !duplicate));
+  return {
+    header,
+    lines: lines.length ? lines : [newLine()],
+    extraDiscount: shown(Number(po.extraDiscount) || 0),
+    isRoundOff: po.isRoundOff !== false,
   };
 }
