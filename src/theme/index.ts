@@ -128,3 +128,6 @@ export function toggleTheme() {
   Appearance.setColorScheme(next);
   void AsyncStorage.setItem(THEME_KEY, next);
 }
+
+/** Tailwind indigo-400 (var(--color-indigo-400) on the web): the small action link at the right of a field's label ("Edit customer", "Edit part"). Same in light and dark. */
+export const linkIndigo = '#818CF8';

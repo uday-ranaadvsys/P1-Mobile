@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { TODAY_GROUP } from 'floman-shared/constants';
@@ -17,6 +18,7 @@ import { useSession } from '@/features/auth/session';
 import { getQuotation, listCustomFields, type Quotation } from '@/features/quotations/api';
 import { HistoryTimeline } from '@/features/quotations/components/HistoryTimeline';
 import { StatusPill } from '@/features/quotations/components/StatusPill';
+import { useQuotationActions } from '@/features/quotations/useQuotationActions';
 import { addressCopy, CLOSED_STATUSES, daysLeft, money, personName, quotationDate, statusInWords } from '@/features/quotations/text';
 import { formatDate } from '@/lib/format';
 import { useHide } from '@/lib/privacy';
@@ -35,13 +37,15 @@ const canConvert = (q: Quotation) =>
  * Review opens the Approve / Return screen. Edit, the ⋯ actions and PDF come in the next steps.
  */
 export default function QuotationDetail() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, tab: tabParam } = useLocalSearchParams<{ id: string; tab?: string }>();
   const router = useRouter();
   const { can } = useSession();
   const styles = useThemed(makeStyles);
   const colors = useColors();
   const hide = useHide();
-  const [tab, setTab] = useState<Tab>(TAB.ITEMS);
+  const [tab, setTab] = useState<Tab>(tabParam === TAB.HISTORY ? TAB.HISTORY : TAB.ITEMS);
+  // The ⋯ menu: Edit, Duplicate, View history (this screen's own tab), Cancel, Restore.
+  const actions = useQuotationActions({ onHistory: () => setTab(TAB.HISTORY) });
 
   const { data: q, error, isLoading, refetch } = useQuery({ queryKey: ['quotation', id], queryFn: () => getQuotation(id!) });
   const fields = useQuery({ queryKey: ['custom-fields', DOCUMENT_TYPE.QUOTATION], queryFn: () => listCustomFields(DOCUMENT_TYPE.QUOTATION), retry: false });
@@ -133,7 +137,12 @@ export default function QuotationDetail() {
         <ScreenTitle back="Quotations" />
 
         <View style={{ gap: spacing.xs }}>
-          <Text style={styles.number} accessibilityRole="header">{q.quotationNumber}</Text>
+          <View style={styles.numberRow}>
+            <Text style={[styles.number, { flex: 1 }]} accessibilityRole="header">{q.quotationNumber}</Text>
+            <Pressable onPress={() => actions.open(q)} accessibilityRole="button" accessibilityLabel="Actions" style={({ pressed }) => [styles.more, pressed && { opacity: 0.6 }]}>
+              <Ionicons name="ellipsis-horizontal" size={22} color={colors.ink} />
+            </Pressable>
+          </View>
           <StatusPill status={q.status} edited={Boolean(q.editedAt)} />
           <Text style={styles.sub}>
             Dated {formatDate(quotationDate(q))}
@@ -152,6 +161,10 @@ export default function QuotationDetail() {
             <Text style={styles.nextTitle}>{nextStep.title}</Text>
             <Text style={styles.sub}>{nextStep.body}</Text>
           </View>
+        ) : null}
+
+        {can(PERMISSIONS.QUOTATIONS.UPDATE) && (q.status === QUOTATION_STATUS.DRAFT || q.status === QUOTATION_STATUS.APPROVER_RETURNED) ? (
+          <Button title="Edit" onPress={() => router.push({ pathname: '/sales/quotations/edit', params: { id: q.id } })} />
         ) : null}
 
         {q.status === QUOTATION_STATUS.PENDING_APPROVAL && canApprove ? (
@@ -292,6 +305,7 @@ export default function QuotationDetail() {
 
         {tab === TAB.HISTORY ? <HistoryTimeline entries={q.auditLogs ?? []} /> : null}
       </ScrollView>
+      {actions.sheets}
     </View>
   );
 }
@@ -310,6 +324,8 @@ const makeStyles = (c: Colors) =>
   StyleSheet.create({
     page: { padding: spacing.md, gap: spacing.lg, paddingBottom: spacing.lg * 2 },
     number: { ...type.title1, color: c.ink },
+    numberRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+    more: { width: 44, height: 44, borderRadius: 12, borderWidth: 1, borderColor: c.outline, backgroundColor: c.surface, alignItems: 'center', justifyContent: 'center' },
     sub: { ...type.subhead, color: c.muted },
     body: { ...type.body, color: c.ink },
     small: { ...type.footnote, color: c.muted },

@@ -3,7 +3,8 @@ import { SheetModal } from '@/components/SheetModal';
 import { Text } from '@/components/AppText';
 import { spacing, type, useColors, useThemed, type Colors } from '@/theme';
 
-export type SheetAction = { label: string; onPress: () => void; destructive?: boolean };
+/** `disabled` + `hint`: shown greyed with the reason underneath (the web's greyed menu entry with a hint on hover). */
+export type SheetAction = { label: string; onPress: () => void; destructive?: boolean; disabled?: boolean; hint?: string };
 
 /**
  * A row's actions in a bottom sheet (the web's ⋮ menu): each is 52 pt tall, a destructive one is red, and Cancel is
@@ -22,13 +23,16 @@ export function ActionSheet({ visible, title, actions, onClose }: { visible: boo
             <Pressable
               key={a.label}
               onPress={() => {
+                if (a.disabled) return;
                 onClose();
                 a.onPress();
               }}
               accessibilityRole="button"
-              style={({ pressed }) => [styles.row, pressed && { opacity: 0.6 }]}
+              accessibilityState={{ disabled: Boolean(a.disabled) }}
+              style={({ pressed }) => [styles.row, a.disabled && { opacity: 0.45 }, pressed && !a.disabled && { opacity: 0.6 }]}
             >
               <Text style={[styles.rowText, a.destructive && { color: colors.danger }]}>{a.label}</Text>
+              {a.disabled && a.hint ? <Text style={styles.hint}>{a.hint}</Text> : null}
             </Pressable>
           ))}
           <Pressable onPress={onClose} accessibilityRole="button" style={({ pressed }) => [styles.row, styles.cancel, pressed && { opacity: 0.6 }]}>
@@ -48,5 +52,6 @@ const makeStyles = (c: Colors) =>
     title: { ...type.footnoteBold, color: c.muted, textAlign: 'center', paddingVertical: spacing.sm, paddingHorizontal: spacing.md },
     row: { minHeight: 52, justifyContent: 'center', alignItems: 'center', paddingHorizontal: spacing.md, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.divider },
     rowText: { ...type.body, color: c.ink },
+    hint: { ...type.footnote, color: c.muted, textAlign: 'center', marginTop: 2 },
     cancel: { marginTop: spacing.xs },
   });

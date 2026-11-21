@@ -9,14 +9,25 @@ import type { SeriesOption } from '../api';
 /**
  * The number the Quotation will get and its numbering series, at the right of the screen's title (the web puts them
  * beside the title too). Tap the series to change it; with none set up it says so.
+ * `number`: the Quotation's own number when it has one (editing); `locked`: it is numbered, so its series is fixed.
  */
-export function SeriesBadge({ options, loading, failed, value, onChange }: {
+export function SeriesBadge({ options, loading, failed, value, onChange, number, locked }: {
   options: SeriesOption[] | undefined; loading: boolean; failed: boolean; value: string | null; onChange: (seriesId: string) => void;
+  number?: string; locked?: boolean;
 }) {
   const styles = useThemed(makeStyles);
   const colors = useColors();
   const [open, setOpen] = useState(false);
   const chosen = options?.find((o) => o.id === value) ?? null;
+
+  // A numbered Quotation being edited keeps its number and series: nothing to pick, nothing that can be missing.
+  if (locked && number) {
+    return (
+      <View style={styles.wrap}>
+        <Text style={styles.number} numberOfLines={1} accessibilityLabel={`Quotation number ${number}`}>{number}</Text>
+      </View>
+    );
+  }
 
   if (loading) return <ActivityIndicator color={colors.muted} />;
 
@@ -30,9 +41,10 @@ export function SeriesBadge({ options, loading, failed, value, onChange }: {
     );
   }
 
+  const shownNumber = number ?? chosen?.nextNumber ?? '—';
   return (
     <View style={styles.wrap}>
-      <Text style={styles.number} numberOfLines={1} accessibilityLabel={`Quotation number ${chosen?.nextNumber ?? 'not set'}`}>{chosen?.nextNumber ?? '—'}</Text>
+      <Text style={styles.number} numberOfLines={1} accessibilityLabel={`Quotation number ${shownNumber}`}>{shownNumber}</Text>
       <Pressable
         onPress={() => options.length > 1 && setOpen(true)}
         disabled={options.length <= 1}

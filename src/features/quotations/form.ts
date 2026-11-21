@@ -4,7 +4,7 @@ import { calculateWithoutTax, calculateWithTax } from 'floman-shared/priceConver
 import { toISODate } from '@/components/DateField';
 import type { Part } from '@/features/parts/api';
 import type { Party, PartyAddress } from '@/features/parties/api';
-import type { CustomFieldDefinition } from './api';
+import type { CustomFieldDefinition, Quotation, QuotationItem } from './api';
 
 /** Sent for "Ship to" while the customer's own (Primary) address is chosen. */
 export const PRIMARY = 'primary';
@@ -99,10 +99,16 @@ export type FormLine = {
   discount: string;
   discountType: string;
   taxRate: number;
+  /** The saved line this is (an edit keeps lines in place); none for a new line. */
+  lineId: string | null;
+  /** What the approver said about this line when returning the Quotation. */
+  approverRemarks: string | null;
 };
 
 let lineCounter = 0;
 export const newLine = (): FormLine => ({
+  lineId: null,
+  approverRemarks: null,
   key: `line-${Date.now()}-${lineCounter++}`,
   partId: null,
   partName: '',
@@ -171,6 +177,8 @@ export function lineProblem(lines: FormLine[], forApproval: boolean): { key: str
 
 /** The line as the server takes it. */
 const linePayload = (l: FormLine, exempt: boolean, fallbackUom: string) => ({
+  ...(l.lineId && { lineId: l.lineId }),
+  approverRemarks: l.approverRemarks || undefined,
   partName: l.partName,
   partId: l.partId,
   scopeOfWork: l.scope.trim() || undefined,
@@ -196,6 +204,8 @@ export function buildPayload(input: {
   header: QuotationHeader;
   status: string;
   number: string | undefined;
+  /** New and draft-numbered Quotations send their series; a numbered one keeps its own. */
+  sendSeries: boolean;
   lines: FormLine[];
   fields: CustomFieldDefinition[];
   extraDiscount: string;
@@ -208,7 +218,7 @@ export function buildPayload(input: {
   const text = (s: string) => s.trim() || undefined;
   return {
     quotationNumber: input.number,
-    seriesId: h.seriesId,
+    seriesId: input.sendSeries ? h.seriesId : undefined,
     vendorId: h.party?.id,
     status: input.status,
     issueDate: h.issueDate,
@@ -254,3 +264,74 @@ export const defaultShipToId = (party: HasAddresses) => deliveryAddresses(party)
 
 /** "Plant 2 — Pune, Maharashtra" in a place list. */
 export const placeChoice = (a: Pick<PartyAddress, 'label' | 'city' | 'state'>) => `${a.label || 'Place'} — ${a.city}${a.state ? `, ${a.state}` : ''}`;
+
+// ── A saved Quotation back into the form (Edit, Duplicate) ───────────────────
+
+/** The delivery address a document kept (a VendorAddress id). Older Quotations kept it in customFields. */
+export const shipToIdOf = (q: Pick<Quotation, 'shippingAddressId' | 'customFields'>): string | null => {
+  const legacy = q.customFields && typeof q.customFields === 'object' ? q.customFields.shippingAddressId : null;
+  return q.shippingAddressId || (typeof legacy === 'string' && legacy ? legacy : null);
+};
+
+/** The address keys older forms put in customFields: not the company's own fields, so not shown or saved again. */
+const OLD_ADDRESS_KEYS = ['billingAddressId', 'shippingAddressId', 'billToAddress', 'shipToAddress'];
+const ownCustomFields = (fields: Quotation['customFields']) => Object.fromEntries(Object.entries(fields ?? {}).filter(([key]) => !OLD_ADDRESS_KEYS.includes(key)));
+
+const day = (iso?: string | null) => (iso ? iso.slice(0, 10) : '');
+
+/** A saved line as a form line. `keep`: an edit keeps the line in place (and the approver's remark on it); a copy starts fresh. */
+export function lineFromItem(it: QuotationItem, keep: boolean): FormLine {
+  const rate = Number(it.unitPrice) || 0;
+  const taxRate = Number(it.taxRate) || 0;
+  const discount = Number(it.discount) || 0;
+  return {
+    ...newLine(),
+    lineId: keep ? it.id : null,
+    approverRemarks: keep ? it.approverRemarks || null : null,
+    partId: it.partId ?? null,
+    partName: it.partName,
+    scope: it.scopeOfWork || '',
+    showSpecs: Boolean(it.scopeOfWork),
+    qty: shown(Number(it.qty) || 1),
+    freeQty: shown(Number(it.freeQty) || 0),
+    uom: it.uom,
+    rate: shown(rate),
+    rateWithTax: shown(calculateWithTax(rate, taxRate)),
+    discount: shown(discount),
+    discountType: it.discountType || DISCOUNT_TYPE.PERCENTAGE,
+    taxRate,
+  };
+}
+
+/**
+ * What the form starts with from a saved Quotation. An edit keeps everything. A copy (`duplicate`) keeps the customer,
+ * lines, places and terms; the dates, the reference (the customer's own for that one) and the number are new.
+ */
+export function formFromQuotation(q: Quotation, party: Party | null, duplicate: boolean) {
+  const fresh = newHeader();
+  const header: QuotationHeader = {
+    party,
+    shipToId: shipToIdOf(q) ?? PRIMARY,
+    billingAddressId: q.billingAddressId ?? '',
+    billingLocationId: q.billingLocationId ?? '',
+    shippingLocationId: q.shippingLocationId ?? '',
+    seriesId: duplicate ? null : q.seriesId ?? null,
+    issueDate: duplicate ? fresh.issueDate : day(q.issueDate) || fresh.issueDate,
+    validityDate: duplicate ? fresh.validityDate : day(q.validityDate),
+    reference: duplicate ? '' : q.reference ?? '',
+    supplyType: q.supplyType || SUPPLY_TYPE.B2B,
+    projectName: q.projectName ?? '',
+    projectCode: q.projectCode ?? '',
+    clientName: q.clientName ?? '',
+    notes: q.notes ?? '',
+    terms: q.terms ?? '',
+    customFields: ownCustomFields(q.customFields),
+  };
+  const lines = (q.items ?? []).map((it) => lineFromItem(it, !duplicate));
+  return {
+    header,
+    lines: lines.length ? lines : [newLine()],
+    extraDiscount: shown(Number(q.extraDiscount) || 0),
+    isRoundOff: q.isRoundOff ?? true,
+  };
+}

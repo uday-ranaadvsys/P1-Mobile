@@ -2,6 +2,7 @@ import { api, apiWithMessage, type Meta } from '@/api/client';
 
 export type QuotationItem = {
   id: string;
+  partId?: string | null;
   partName: string;
   partCode?: string | null;
   partDescription?: string | null;
@@ -72,6 +73,15 @@ export type Quotation = {
   billTo?: PartyAddressText;
   shipTo?: PartyAddressText;
   customFields?: Record<string, unknown> | null;
+  supplyType?: string | null;
+  isRoundOff?: boolean | null;
+  seriesId?: string | null;
+  reference?: string | null;
+  /** Where it is from and to (empty = the registered address / the party's own). */
+  billingAddressId?: string | null;
+  billingLocationId?: string | null;
+  shippingLocationId?: string | null;
+  shippingAddressId?: string | null;
   items?: QuotationItem[];
   salesOrders?: { id: string; soNumber: string; status: string; grandTotal: number | string; orderDate?: string; createdAt?: string }[];
   proformaInvoices?: { id: string; proformaNumber: string; status: string; grandTotal: number | string; proformaDate: string }[];
@@ -142,6 +152,19 @@ export type QuotationPayload = Record<string, unknown>;
 
 /** Saves a new Quotation: as a draft, for approval, or approved (the payload's status). */
 export const createQuotation = (body: QuotationPayload) => api<Quotation>('/quotations', { method: 'POST', body });
+
+/** Saves a Draft, a returned Quotation or an approved one being edited (it goes for approval again). */
+export const updateQuotation = (id: string, body: QuotationPayload) => api<Quotation>(`/quotations/${id}`, { method: 'PUT', body });
+
+/** Voids a Quotation. The server refuses while Sales Orders or Proformas made from it are live. */
+export const cancelQuotation = (id: string, reason: string) => api<Quotation>(`/quotations/${id}/cancel`, { method: 'POST', body: { reason } });
+
+/** A cancelled Quotation back as a Draft with the same number (only while the company's lock is off). */
+export const restoreQuotation = (id: string, reason: string) => apiWithMessage<Quotation>(`/quotations/${id}/restore`, { method: 'POST', body: reason ? { reason } : {} });
+
+/** What stops Edit on an approved Quotation (only the company's lock), asked before its form opens. */
+export type EditBlock = { code?: string; message: string; link?: { kind: string; id: string; number: string } };
+export const quotationEditCheck = async (id: string) => (await api<{ block: EditBlock | null }>(`/quotations/${id}/edit-check`)).block;
 
 /** The company's own fields for a kind of document (GET /custom-fields). */
 export const listCustomFields = (documentType: string) => api<CustomFieldDefinition[]>(`/custom-fields?documentType=${documentType}`);

@@ -10,6 +10,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '@/components/AppText';
 import { Button } from '@/components/Button';
 import { Field } from '@/components/Field';
+import { FieldLink } from '@/components/FieldLink';
 import { FormCard, OptionPills, SectionHeader } from '@/components/FormParts';
 import { FullScreenModal } from '@/components/FullScreenModal';
 import { PickerField } from '@/components/PickerField';
@@ -92,9 +93,13 @@ export function ItemsSection({ lines, onChange, supplyType, problem }: { lines: 
               </View>
 
               <View style={{ gap: spacing.xs }}>
-                <Text style={styles.label}>
-                  Item<Text style={{ color: colors.danger }}> *</Text>
-                </Text>
+                <View style={styles.labelRow}>
+                  <Text style={styles.label}>
+                    Item<Text style={{ color: colors.danger }}> *</Text>
+                  </Text>
+                  {/* As on the web: at the top right of the field. */}
+                  {line.partId && canUpdatePart ? <FieldLink label="Edit part" onPress={() => setQuick({ key: line.key, id: line.partId ?? undefined })} /> : null}
+                </View>
                 <Pressable
                   onPress={() => setPickingKey(line.key)}
                   accessibilityRole="button"
@@ -105,10 +110,14 @@ export function ItemsSection({ lines, onChange, supplyType, problem }: { lines: 
                   <Ionicons name="chevron-down" size={18} color={colors.muted} />
                 </Pressable>
                 {failed ? <Text style={[styles.error, { color: colors.danger }]}>{failed}</Text> : null}
-                {line.partId && canUpdatePart ? (
-                  <Pressable onPress={() => setQuick({ key: line.key, id: line.partId ?? undefined })} accessibilityRole="button" style={styles.textButton}>
-                    <Text style={[styles.textButtonText, { color: colors.brandText }]}>Edit part</Text>
-                  </Pressable>
+                {line.approverRemarks ? (
+                  <View style={[styles.remark, { borderColor: colors.warnText }]}>
+                    <Ionicons name="alert-circle" size={16} color={colors.warnText} />
+                    <Text style={[styles.remarkText, { color: colors.warnText }]}>
+                      <Text style={{ fontWeight: '700' }}>Approver: </Text>
+                      {line.approverRemarks}
+                    </Text>
+                  </View>
                 ) : null}
               </View>
 
@@ -255,10 +264,13 @@ const makeStyles = (c: Colors) =>
     textButtonText: { ...type.subhead, fontWeight: '600' },
     iconButton: { minHeight: 44, minWidth: 44, alignItems: 'center', justifyContent: 'center' },
     label: { ...type.subhead, fontWeight: '600', color: c.ink },
+    labelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
     body: { ...type.body, color: c.ink },
     box: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm, minHeight: 48, backgroundColor: c.surface, borderWidth: 1, borderColor: c.outline, borderRadius: 12, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
     boxText: { ...type.body, flex: 1, color: c.ink, fontWeight: '600' },
     error: { ...type.footnote },
+    remark: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.xs, borderWidth: 1, borderRadius: 10, padding: spacing.sm },
+    remarkText: { ...type.footnote, flex: 1 },
     pair: { flexDirection: 'row', gap: spacing.md },
     discountRow: { flexDirection: 'row', alignItems: 'flex-end', gap: spacing.sm },
     toggle: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, minHeight: 44 },

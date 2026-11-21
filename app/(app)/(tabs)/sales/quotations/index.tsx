@@ -13,7 +13,10 @@ import { ScreenTitle } from '@/components/ScreenTitle';
 import { ErrorText } from '@/components/Text';
 import { listQuotations, type QuotationStats } from '@/features/quotations/api';
 import { QuotationFilterSheet, DEFAULT_QUOTATION_FILTERS, SORT_OPTIONS, activeFilterCount, type QuotationFilterState } from '@/features/quotations/components/QuotationFilterSheet';
+import { CustomerSheet } from '@/features/quotations/components/CustomerSheet';
 import { QuotationRow } from '@/features/quotations/components/QuotationRow';
+import { useQuotationActions } from '@/features/quotations/useQuotationActions';
+import { useHide } from '@/lib/privacy';
 import { statusLabel } from '@/features/quotations/text';
 import { spacing, type, useColors, useThemed, type Colors } from '@/theme';
 
@@ -45,6 +48,10 @@ export default function Quotations() {
   const [filters, setFilters] = useState<QuotationFilterState>(DEFAULT_QUOTATION_FILTERS);
   const [filterSheet, setFilterSheet] = useState(false);
   const [sortSheet, setSortSheet] = useState(false);
+  const [customerSheet, setCustomerSheet] = useState(false);
+  const hide = useHide();
+  // Long-press a row (or ⋯ on its detail): Edit, Duplicate, View history, Cancel, Restore.
+  const actions = useQuotationActions();
 
   // Search as you type (a moment after the last key).
   useEffect(() => {
@@ -63,6 +70,7 @@ export default function Quotations() {
         amount: filters.amount !== LIST_FILTER.ALL ? filters.amount : undefined,
         from: filters.from || undefined,
         to: filters.to || undefined,
+        vendorId: filters.customer?.id,
       }),
     // Keep the list on screen while a new search loads, so typing in the search box is never interrupted.
     placeholderData: keepPreviousData,
@@ -146,6 +154,20 @@ export default function Quotations() {
         }}
       />
 
+      {filters.customer ? (
+        <View style={styles.chipRow}>
+          <Pressable
+            onPress={() => setFilters({ ...filters, customer: null })}
+            accessibilityRole="button"
+            accessibilityLabel={`Remove the customer filter: ${filters.customer.name}`}
+            style={({ pressed }) => [styles.filterChip, pressed && { opacity: 0.6 }]}
+          >
+            <Text style={styles.filterChipText} numberOfLines={1}>Customer: {hide.text(filters.customer.name)}</Text>
+            <Ionicons name="close" size={16} color={colors.muted} />
+          </Pressable>
+        </View>
+      ) : null}
+
       <View style={styles.meta}>
         <Text style={styles.metaText}>
           {matching} {matching === 1 ? 'quotation' : 'quotations'} · <Text style={styles.metaBold}>{label(status)}</Text>
@@ -178,7 +200,9 @@ export default function Quotations() {
         keyExtractor={(q) => q.id}
         ListHeaderComponent={header}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
-        renderItem={({ item }) => <QuotationRow quotation={item} onOpen={() => router.push({ pathname: '/sales/quotations/[id]', params: { id: item.id } })} />}
+        renderItem={({ item }) => (
+          <QuotationRow quotation={item} onOpen={() => router.push({ pathname: '/sales/quotations/[id]', params: { id: item.id } })} onActions={() => actions.open(item)} />
+        )}
         ListEmptyComponent={
           <View style={styles.empty}>
             <Text style={styles.emptyTitle}>No Quotation Records Found</Text>
@@ -193,7 +217,19 @@ export default function Quotations() {
         keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={query.isRefetching && !query.isFetchingNextPage} onRefresh={() => void query.refetch()} tintColor={colors.brandText} />}
       />
-      <QuotationFilterSheet visible={filterSheet} value={filters} onChange={setFilters} onClose={() => setFilterSheet(false)} />
+      <QuotationFilterSheet
+        visible={filterSheet}
+        value={filters}
+        onChange={setFilters}
+        // The customer list opens once this sheet has closed (a phone can't show two at once).
+        onPickCustomer={() => {
+          setFilterSheet(false);
+          setTimeout(() => setCustomerSheet(true), 400);
+        }}
+        onClose={() => setFilterSheet(false)}
+      />
+      <CustomerSheet visible={customerSheet} selectedId={filters.customer?.id} onPick={(p) => setFilters({ ...filters, customer: { id: p.id, name: p.name } })} onClose={() => setCustomerSheet(false)} />
+      {actions.sheets}
       <OptionSheet visible={sortSheet} title="Sort" options={SORT_OPTIONS} value={filters.sort} onSelect={(sort) => setFilters({ ...filters, sort })} onClose={() => setSortSheet(false)} />
     </>
   );
@@ -213,6 +249,9 @@ const makeStyles = (c: Colors) =>
     chip: { minHeight: 44, paddingHorizontal: spacing.md, borderRadius: 22, borderWidth: 1, borderColor: c.outline, backgroundColor: c.surface, justifyContent: 'center' },
     chipActive: { borderColor: c.brandText, backgroundColor: c.brandTint },
     chipText: { ...type.subhead, fontWeight: '600', color: c.ink },
+    chipRow: { flexDirection: 'row' },
+    filterChip: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, minHeight: 44, maxWidth: '100%', paddingHorizontal: spacing.md, borderRadius: 22, borderWidth: 1, borderColor: c.outline, backgroundColor: c.surface },
+    filterChipText: { ...type.subhead, fontWeight: '600', color: c.ink, flexShrink: 1 },
     meta: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', minHeight: 32 },
     metaText: { ...type.subhead, color: c.muted },
     metaBold: { color: c.ink, fontWeight: '700' },

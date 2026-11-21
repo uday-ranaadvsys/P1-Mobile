@@ -27,6 +27,19 @@ export function ErrorBanner({ message }: { message: string | null }) {
   );
 }
 
+/** A notice at the top of a form (returned for changes, editing an approved document, cloned from): a title and what to do. */
+export function NoticeBanner({ title, body, tone = 'neutral' }: { title: string; body?: string | null; tone?: 'neutral' | 'warn' | 'danger' }) {
+  const styles = useThemed(makeStyles);
+  const colors = useColors();
+  const accent = tone === 'danger' ? colors.danger : tone === 'warn' ? colors.warnText : colors.muted;
+  return (
+    <View style={[styles.banner, { borderColor: accent }]} accessibilityRole="alert">
+      <Text style={[styles.noticeTitle, { color: colors.ink }]}>{title}</Text>
+      {body ? <Text style={styles.help}>{body}</Text> : null}
+    </View>
+  );
+}
+
 /** A yes/no choice as a switch (the web's checkbox), with its label and an optional line of help. */
 export function SwitchRow({ label, help, value, onChange, disabled }: {
   label: string; help?: string; value: boolean; onChange: (value: boolean) => void; disabled?: boolean;
@@ -81,6 +94,7 @@ const makeStyles = (c: Colors) =>
     card: { backgroundColor: c.surface, borderRadius: 16, borderWidth: 1, borderColor: c.outline, padding: spacing.md, gap: spacing.md },
     banner: { borderWidth: 1, borderRadius: 12, padding: spacing.md },
     bannerText: { ...type.subhead },
+    noticeTitle: { ...type.subhead, fontWeight: '700' },
     switchRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 44 },
     switchLabel: { ...type.body, color: c.ink },
     help: { ...type.footnote, color: c.muted },

@@ -9,6 +9,7 @@ import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '@/components/AppText';
 import { DateField } from '@/components/DateField';
 import { Field } from '@/components/Field';
+import { FieldLink } from '@/components/FieldLink';
 import { FormCard, SectionHeader } from '@/components/FormParts';
 import { FullScreenModal } from '@/components/FullScreenModal';
 import { PickerField } from '@/components/PickerField';
@@ -35,7 +36,13 @@ const templateTitle = (t: TextTemplate) => `${t.title || t.name || 'Untitled'}${
  * the customer and where it is billed and shipped, our own places, the series and number, the dates,
  * the supply type, and the notes and terms. `onChange` takes the changed fields only.
  */
-export function HeaderSection({ value, onChange, errors, children, footer }: { value: QuotationHeader; onChange: (patch: Partial<QuotationHeader>) => void; errors: HeaderErrors; children?: ReactNode; footer?: ReactNode }) {
+export function HeaderSection({ value, onChange, errors, children, footer, customerLock, billingLocked }: {
+  value: QuotationHeader; onChange: (patch: Partial<QuotationHeader>) => void; errors: HeaderErrors; children?: ReactNode; footer?: ReactNode;
+  /** Why the customer can't be changed (documents were made from this Quotation); none = it can. */
+  customerLock?: string | null;
+  /** Bill from is fixed once the Quotation has its number (the number is that place's series). */
+  billingLocked?: boolean;
+}) {
   const styles = useThemed(makeStyles);
   const colors = useColors();
   const hide = useHide();
@@ -93,6 +100,7 @@ export function HeaderSection({ value, onChange, errors, children, footer }: { v
           label="Bill from"
           value={value.billingLocationId}
           options={placeOptions}
+          disabled={billingLocked}
           onChange={(billingLocationId) =>
             // Dispatch from moves along while it was the same place.
             onChange({ billingLocationId, shippingLocationId: value.shippingLocationId === value.billingLocationId ? billingLocationId : value.shippingLocationId })
@@ -109,14 +117,19 @@ export function HeaderSection({ value, onChange, errors, children, footer }: { v
         <SectionHeader>Customer & dates</SectionHeader>
         <FormCard>
           <View style={{ gap: spacing.xs }}>
-            <Text style={styles.label}>
-              Customer<Text style={{ color: colors.danger }}> *</Text>
-            </Text>
+            <View style={styles.labelRow}>
+              <Text style={styles.label}>
+                Customer<Text style={{ color: colors.danger }}> *</Text>
+              </Text>
+              {/* As on the web: at the top right of the field, and hidden once the customer is locked. */}
+              {party && canUpdateParty && !customerLock ? <FieldLink label="Edit customer" onPress={() => setQuick({ id: party.id })} /> : null}
+            </View>
             <Pressable
               onPress={() => setCustomerSheet(true)}
+              disabled={Boolean(customerLock)}
               accessibilityRole="button"
               accessibilityLabel={`Customer: ${party?.name ?? 'not chosen'}`}
-              style={({ pressed }) => [styles.box, errors.party ? { borderColor: colors.danger } : null, pressed && { opacity: 0.7 }]}
+              style={({ pressed }) => [styles.box, errors.party ? { borderColor: colors.danger } : null, customerLock && { opacity: 0.6 }, pressed && { opacity: 0.7 }]}
             >
               {party ? (
                 <View style={{ flex: 1, gap: 2 }}>
@@ -129,11 +142,7 @@ export function HeaderSection({ value, onChange, errors, children, footer }: { v
               {picking ? <ActivityIndicator color={colors.muted} /> : <Ionicons name="chevron-down" size={18} color={colors.muted} />}
             </Pressable>
             {errors.party ? <Text style={[styles.error, { color: colors.danger }]}>{errors.party}</Text> : null}
-            {party && canUpdateParty ? (
-              <Pressable onPress={() => setQuick({ id: party.id })} accessibilityRole="button" style={styles.toggle}>
-                <Text style={[styles.toggleText, { color: colors.brandText }]}>Edit customer</Text>
-              </Pressable>
-            ) : null}
+            {customerLock ? <Text style={styles.sub}>{customerLock}</Text> : null}
           </View>
 
           {party ? (
@@ -266,6 +275,7 @@ function ReadOnlyBox({ label, text, empty }: { label: string; text: string; empt
 const makeStyles = (c: Colors) =>
   StyleSheet.create({
     label: { ...type.subhead, fontWeight: '600', color: c.ink },
+    labelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
     box: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minHeight: 48, backgroundColor: c.surface, borderWidth: 1, borderColor: c.outline, borderRadius: 12, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
     value: { ...type.body, color: c.ink },
     sub: { ...type.footnote, color: c.muted },

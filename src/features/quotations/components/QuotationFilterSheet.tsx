@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { AMOUNT_RANGES, LIST_FILTER, LIST_SORT } from 'floman-shared/constants';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SheetModal } from '@/components/SheetModal';
@@ -5,11 +6,12 @@ import { Button } from '@/components/Button';
 import { Text } from '@/components/AppText';
 import { DateField } from '@/components/DateField';
 import { PickerField } from '@/components/PickerField';
-import { spacing, type, useThemed, type Colors } from '@/theme';
+import { useHide } from '@/lib/privacy';
+import { spacing, type, useColors, useThemed, type Colors } from '@/theme';
 
-export type QuotationFilterState = { amount: string; from: string; to: string; sort: string };
+export type QuotationFilterState = { amount: string; from: string; to: string; sort: string; customer: { id: string; name: string } | null };
 
-export const DEFAULT_QUOTATION_FILTERS: QuotationFilterState = { amount: LIST_FILTER.ALL, from: '', to: '', sort: LIST_SORT.NEWEST };
+export const DEFAULT_QUOTATION_FILTERS: QuotationFilterState = { amount: LIST_FILTER.ALL, from: '', to: '', sort: LIST_SORT.NEWEST, customer: null };
 
 // The choices and their words are the web's (client features/quotations/pages/Quotations.tsx).
 export const AMOUNT_OPTIONS = [
@@ -25,13 +27,17 @@ export const SORT_OPTIONS = [
 ];
 
 /** How many filters differ from the defaults (the badge on the Filters button; the sort order is not a filter). */
-export const activeFilterCount = (f: QuotationFilterState) => [f.amount !== LIST_FILTER.ALL, Boolean(f.from || f.to)].filter(Boolean).length;
+export const activeFilterCount = (f: QuotationFilterState) => [Boolean(f.customer), f.amount !== LIST_FILTER.ALL, Boolean(f.from || f.to)].filter(Boolean).length;
 
-/** Amount and Date (from / to), in one sheet; the status is the pills on the list. */
-export function QuotationFilterSheet({ visible, value, onChange, onClose }: {
-  visible: boolean; value: QuotationFilterState; onChange: (next: QuotationFilterState) => void; onClose: () => void;
+/** Customer, Amount and Date (from / to), in one sheet; the status is the pills on the list. */
+export function QuotationFilterSheet({ visible, value, onChange, onPickCustomer, onClose }: {
+  visible: boolean; value: QuotationFilterState; onChange: (next: QuotationFilterState) => void;
+  /** Opens the customer list (the screen closes this sheet first: a phone can't show two at once). */
+  onPickCustomer: () => void; onClose: () => void;
 }) {
   const styles = useThemed(makeStyles);
+  const colors = useColors();
+  const hide = useHide();
   const set = (patch: Partial<QuotationFilterState>) => onChange({ ...value, ...patch });
   return (
     <SheetModal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -40,6 +46,25 @@ export function QuotationFilterSheet({ visible, value, onChange, onClose }: {
         <View style={styles.sheet}>
           <Text style={styles.title}>Filters</Text>
           <ScrollView contentContainerStyle={{ gap: spacing.md }} keyboardShouldPersistTaps="handled">
+            <View style={{ gap: spacing.xs }}>
+              <Text style={styles.label}>Customer</Text>
+              <Pressable
+                onPress={onPickCustomer}
+                accessibilityRole="button"
+                accessibilityLabel={`Customer: ${value.customer?.name ?? 'all customers'}`}
+                style={({ pressed }) => [styles.box, pressed && { opacity: 0.7 }]}
+              >
+                <Text style={[styles.boxText, !value.customer && { color: colors.placeholder }]} numberOfLines={1}>
+                  {value.customer ? hide.text(value.customer.name) : 'All customers'}
+                </Text>
+                <Ionicons name="chevron-down" size={18} color={colors.muted} />
+              </Pressable>
+              {value.customer ? (
+                <Pressable onPress={() => set({ customer: null })} accessibilityRole="button" accessibilityLabel="Clear customer" style={styles.clear}>
+                  <Text style={[type.subhead, { fontWeight: '600', color: colors.brandText }]}>Clear</Text>
+                </Pressable>
+              ) : null}
+            </View>
             <PickerField label="Amount" value={value.amount} options={AMOUNT_OPTIONS} onChange={(amount) => set({ amount })} />
             <DateField label="Date from" value={value.from} onChange={(from) => set({ from })} onClear={() => set({ from: '' })} />
             <DateField label="Date to" value={value.to} onChange={(to) => set({ to })} onClear={() => set({ to: '' })} />
@@ -60,5 +85,9 @@ const makeStyles = (c: Colors) =>
     backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.45)' },
     sheet: { backgroundColor: c.surface, maxHeight: '85%', padding: spacing.lg, gap: spacing.md, borderTopLeftRadius: 16, borderTopRightRadius: 16 },
     title: { ...type.title3, color: c.ink },
+    label: { ...type.subhead, fontWeight: '600', color: c.ink },
+    box: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm, minHeight: 48, backgroundColor: c.surface, borderWidth: 1, borderColor: c.outline, borderRadius: 12, paddingHorizontal: spacing.md },
+    boxText: { ...type.body, flex: 1, color: c.ink },
+    clear: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' },
     buttons: { flexDirection: 'row', gap: spacing.md },
   });
