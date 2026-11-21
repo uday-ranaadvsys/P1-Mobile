@@ -13,8 +13,9 @@ const tabIcon = (name: IconName) => ({ color, size }: { color: unknown; size: nu
   <Ionicons name={name} size={size + 2} color={String(color)} />
 );
 
-/** What the red + adds on each screen of the More tab: where it goes, who may, and what it is called. */
+/** What the red + adds on each screen of the More and Sales tabs: where it goes, who may, and what it is called. */
 const ADDS = [
+  { prefix: '/sales/quotations', href: '/sales/quotations/edit', permission: PERMISSIONS.QUOTATIONS.CREATE, label: 'New quotation' },
   { prefix: '/more/parties', href: '/more/parties/edit', permission: PERMISSIONS.VENDORS.CREATE, label: 'New vendor or customer' },
   { prefix: '/more/parts', href: '/more/parts/edit', permission: PERMISSIONS.PARTS.CREATE, label: 'New part' },
   { prefix: '/more/users', href: '/more/users/edit', permission: PERMISSIONS.USERS.CREATE, label: 'Invite user', inviteOnly: true },
