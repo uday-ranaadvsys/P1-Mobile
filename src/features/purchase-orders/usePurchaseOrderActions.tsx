@@ -7,20 +7,22 @@ import { useState } from 'react';
 import { Alert, Pressable } from 'react-native';
 import { Text } from '@/components/AppText';
 import { ActionSheet, type SheetAction } from '@/components/ActionSheet';
+import { BusyModal } from '@/components/BusyModal';
 import { IndentLinesChoice } from '@/components/IndentLinesChoice';
 import { ReasonSheet } from '@/components/ReasonSheet';
 import { useSession } from '@/features/auth/session';
 import { getDocumentLock } from '@/features/company/api';
 import { notify } from '@/lib/notify';
+import { sharePdf } from '@/lib/sharePdf';
 import { useColors } from '@/theme';
 import { cancelPurchaseOrder, purchaseOrderEditCheck, restorePurchaseOrder, type PurchaseOrder } from './api';
-import { liveGrns } from './text';
+import { liveGrns, pdfName } from './text';
 
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /**
  * What a Purchase Order can do, as the web's ⋯ menu: Edit (a draft or returned one; an approved or received one after
- * the server's check), Duplicate, View history, Cancel (waits for its GRNs) and Restore (a cancelled one).
+ * the server's check), Duplicate, Share PDF, View history, Cancel (waits for its GRNs) and Restore (a cancelled one).
  * `open(order)` shows the menu; render `sheets` once on the screen. Cancel asks for a reason and what happens to the
  * items that came from indents; Restore asks for a reason (optional).
  * `onHistory`: where View history goes when the screen can show it itself (the detail's History tab).
@@ -49,6 +51,19 @@ export function usePurchaseOrderActions(options: { onHistory?: (po: PurchaseOrde
   const changed = (id: string) => {
     void queryClient.invalidateQueries({ queryKey: ['purchase-orders'] });
     void queryClient.invalidateQueries({ queryKey: ['purchase-order', id] });
+  };
+
+  // Share PDF: the server makes it (the default print template), then the phone's share sheet opens (WhatsApp, email, save).
+  const [preparing, setPreparing] = useState(false);
+  const share = async (po: PurchaseOrder) => {
+    setPreparing(true);
+    try {
+      await sharePdf(`/purchase-orders/${po.id}/pdf`, pdfName(po), `Purchase Order ${po.poNumber}`);
+    } catch (e) {
+      Alert.alert('Could not share the PDF', message(e));
+    } finally {
+      setPreparing(false);
+    }
   };
 
   const edit = (po: PurchaseOrder) => router.push({ pathname: '/purchase/purchase-orders/edit', params: { id: po.id } });
@@ -102,6 +117,7 @@ export function usePurchaseOrderActions(options: { onHistory?: (po: PurchaseOrde
     if (canCreate && po.status !== PO_STATUS.DRAFT && po.status !== PO_STATUS.CANCELLED) {
       list.push({ label: 'Duplicate', onPress: () => router.push({ pathname: '/purchase/purchase-orders/edit', params: { duplicateFrom: po.id } }) });
     }
+    list.push({ label: 'Share PDF', onPress: () => void share(po) });
     list.push({
       label: 'View history',
       onPress: () => (options.onHistory ? options.onHistory(po) : router.push({ pathname: '/purchase/purchase-orders/[id]', params: { id: po.id, tab: 'history' } })),
@@ -144,6 +160,7 @@ export function usePurchaseOrderActions(options: { onHistory?: (po: PurchaseOrde
 
   const sheets = (
     <>
+      <BusyModal visible={preparing} text="Preparing the PDF…" />
       <ActionSheet visible={menu} title={target?.poNumber} actions={target ? actionsFor(target) : []} onClose={() => setMenu(false)} />
       <ReasonSheet
         visible={cancelFor !== null}
@@ -188,6 +205,9 @@ export function usePurchaseOrderActions(options: { onHistory?: (po: PurchaseOrde
       setTarget(po);
       setMenu(true);
     },
+    /** Makes the PDF and opens the share sheet (the detail screen's Share PDF button). */
+    share,
+    sharing: preparing,
     /** The menu and the Cancel and Restore boxes: render once on the screen. */
     sheets,
   };

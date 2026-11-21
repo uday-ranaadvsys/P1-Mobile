@@ -1,4 +1,5 @@
 import { QUOTATION_STATUS } from 'floman-shared/statuses';
+import { fileSafe } from '@/lib/fileName';
 import { formatMoney } from '@/lib/format';
 import type { Quotation } from './api';
 
@@ -50,4 +51,4 @@ export const personName = (p?: { firstName?: string | null; lastName?: string | 
 export const addressCopy = (copy: Quotation['billTo']) => (copy && typeof copy.text === 'string' && copy.text.trim() ? copy.text : null);
 
 /** The PDF's file name as the receiver sees it: Quotation_QT_26-27_0007.pdf (a "/" or ":" in the number would break a file name). */
-export const pdfName = (q: { quotationNumber: string }) => `Quotation_${q.quotationNumber.replace(/[/\\:]/g, '_')}.pdf`;
+export const pdfName = (q: { quotationNumber: string }) => `Quotation_${fileSafe(q.quotationNumber)}.pdf`;

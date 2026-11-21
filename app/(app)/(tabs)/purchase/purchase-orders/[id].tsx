@@ -32,8 +32,8 @@ type Tab = (typeof TAB)[keyof typeof TAB];
 
 /**
  * One Purchase Order, as the web's side panel: the total, what to do next, then Items, Details, Linked documents and
- * History. Review opens the Approve / Return screen; the ⋯ menu has Edit, Duplicate, Cancel and Restore. Create GRN and
- * Share PDF come in the next steps.
+ * History. Review opens the Approve / Return screen; the ⋯ menu has Edit, Duplicate, Cancel and Restore. Create GRN comes
+ * with the GRN screen; Share PDF makes the PDF and opens the phone's share sheet.
  */
 export default function PurchaseOrderDetail() {
   const { id, tab: tabParam } = useLocalSearchParams<{ id: string; tab?: string }>();
@@ -160,6 +160,8 @@ export default function PurchaseOrderDetail() {
             {nextStep.body ? <Text style={styles.sub}>{nextStep.body}</Text> : null}
           </View>
         ) : null}
+
+        <Button title="Share PDF" tone="secondary" onPress={() => void actions.share(po)} busy={actions.sharing} />
 
         {can(PERMISSIONS.PURCHASE_ORDERS.UPDATE) && (po.status === PO_STATUS.DRAFT || po.status === PO_STATUS.RETURNED) ? (
           <Button title="Edit" tone={reviewable ? 'secondary' : 'primary'} onPress={() => router.push({ pathname: '/purchase/purchase-orders/edit', params: { id: po.id } })} />
