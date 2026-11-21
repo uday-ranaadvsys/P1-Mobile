@@ -7,12 +7,15 @@ import { useState } from 'react';
 import { Alert, Pressable } from 'react-native';
 import { Text } from '@/components/AppText';
 import { ActionSheet, type SheetAction } from '@/components/ActionSheet';
+import { BusyModal } from '@/components/BusyModal';
 import { ReasonSheet } from '@/components/ReasonSheet';
 import { useSession } from '@/features/auth/session';
 import { getDocumentLock } from '@/features/company/api';
 import { notify } from '@/lib/notify';
+import { sharePdf } from '@/lib/sharePdf';
 import { useColors } from '@/theme';
 import { cancelQuotation, quotationEditCheck, restoreQuotation, type Quotation } from './api';
+import { pdfName } from './text';
 
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
@@ -54,6 +57,19 @@ export function useQuotationActions(options: { onHistory?: (q: Quotation) => voi
   };
 
   const edit = (q: Quotation) => router.push({ pathname: '/sales/quotations/edit', params: { id: q.id } });
+
+  // Share PDF: the server makes it (the default print template), then the phone's share sheet opens (WhatsApp, email, save).
+  const [preparing, setPreparing] = useState(false);
+  const share = async (q: Quotation) => {
+    setPreparing(true);
+    try {
+      await sharePdf(`/quotations/${q.id}/pdf`, pdfName(q), `Quotation ${q.quotationNumber}`);
+    } catch (e) {
+      Alert.alert('Could not share the PDF', message(e));
+    } finally {
+      setPreparing(false);
+    }
+  };
 
   // An approved Quotation: asked first what stops it; a block is told with its words.
   const editApproved = async (q: Quotation) => {
@@ -104,6 +120,7 @@ export function useQuotationActions(options: { onHistory?: (q: Quotation) => voi
     if (canCreate && q.status !== QUOTATION_STATUS.DRAFT && q.status !== QUOTATION_STATUS.CANCELLED) {
       list.push({ label: 'Duplicate', onPress: () => router.push({ pathname: '/sales/quotations/edit', params: { duplicateFrom: q.id } }) });
     }
+    list.push({ label: 'Share PDF', onPress: () => void share(q) });
     list.push({
       label: 'View history',
       onPress: () => (options.onHistory ? options.onHistory(q) : router.push({ pathname: '/sales/quotations/[id]', params: { id: q.id, tab: 'history' } })),
@@ -146,6 +163,7 @@ export function useQuotationActions(options: { onHistory?: (q: Quotation) => voi
 
   const sheets = (
     <>
+      <BusyModal visible={preparing} text="Preparing the PDF…" />
       <ActionSheet visible={menu} title={target?.quotationNumber} actions={target ? actionsFor(target) : []} onClose={() => setMenu(false)} />
       <ReasonSheet
         visible={cancelFor !== null}
@@ -184,6 +202,9 @@ export function useQuotationActions(options: { onHistory?: (q: Quotation) => voi
       setTarget(q);
       setMenu(true);
     },
+    /** Makes the PDF and opens the share sheet (the detail screen's Share PDF button). */
+    share,
+    sharing: preparing,
     /** The menu and the Cancel and Restore boxes: render once on the screen. */
     sheets,
   };

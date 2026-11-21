@@ -48,3 +48,6 @@ export const personName = (p?: { firstName?: string | null; lastName?: string | 
 
 /** A document's Bill To / Ship To as its details show them: the copy it kept when it was last saved. */
 export const addressCopy = (copy: Quotation['billTo']) => (copy && typeof copy.text === 'string' && copy.text.trim() ? copy.text : null);
+
+/** The PDF's file name as the receiver sees it: Quotation_QT_26-27_0007.pdf (a "/" or ":" in the number would break a file name). */
+export const pdfName = (q: { quotationNumber: string }) => `Quotation_${q.quotationNumber.replace(/[/\\:]/g, '_')}.pdf`;

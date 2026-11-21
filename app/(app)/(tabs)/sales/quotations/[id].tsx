@@ -163,6 +163,8 @@ export default function QuotationDetail() {
           </View>
         ) : null}
 
+        <Button title="Share PDF" tone="secondary" onPress={() => void actions.share(q)} busy={actions.sharing} />
+
         {can(PERMISSIONS.QUOTATIONS.UPDATE) && (q.status === QUOTATION_STATUS.DRAFT || q.status === QUOTATION_STATUS.APPROVER_RETURNED) ? (
           <Button title="Edit" onPress={() => router.push({ pathname: '/sales/quotations/edit', params: { id: q.id } })} />
         ) : null}

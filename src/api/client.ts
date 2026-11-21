@@ -77,6 +77,34 @@ export async function apiWithMessage<T>(path: string, { method = 'GET', body, lo
   return { data: json.data as T, message: json.message ?? null, meta: json.meta ?? null };
 }
 
+/** A PDF takes the server a few seconds (it makes it in a browser of its own), so it may take longer than other calls. */
+const FILE_TIMEOUT_MS = 60000;
+
+/**
+ * A file the API makes (a document's PDF), as bytes. The sign-in goes with it as for any call; a refusal (too many PDFs
+ * a minute, not found) comes as the server's own words.
+ */
+export async function apiFile(path: string): Promise<ArrayBuffer> {
+  const token = hooks.getToken();
+  const timer = new AbortController();
+  const giveUp = setTimeout(() => timer.abort(), FILE_TIMEOUT_MS);
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}${path}`, {
+      signal: timer.signal,
+      headers: { [APP_CLIENT.HEADER]: APP_CLIENT.MOBILE, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    });
+    if (res.ok) return await res.arrayBuffer();
+  } catch {
+    throw new ApiError(0, 'NETWORK', UNREACHABLE);
+  } finally {
+    clearTimeout(giveUp);
+  }
+  const json = (await res.json().catch(() => null)) as Envelope<unknown> | null;
+  if (res.status === 401 && token) hooks.onSignedOut();
+  throw new ApiError(res.status, json?.error?.code ?? 'ERROR', json?.error?.message ?? json?.message ?? UNREACHABLE, json?.error?.details);
+}
+
 /** Same call, returning only `data`. */
 export async function api<T>(path: string, options: Options = {}): Promise<T> {
   return (await apiWithMessage<T>(path, options)).data;
