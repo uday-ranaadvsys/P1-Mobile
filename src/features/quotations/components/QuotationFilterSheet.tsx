@@ -1,5 +1,6 @@
 import { AMOUNT_RANGES, LIST_FILTER, LIST_SORT } from 'floman-shared/constants';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { SheetModal } from '@/components/SheetModal';
 import { Button } from '@/components/Button';
 import { Text } from '@/components/AppText';
 import { DateField } from '@/components/DateField';
@@ -33,7 +34,7 @@ export function QuotationFilterSheet({ visible, value, onChange, onClose }: {
   const styles = useThemed(makeStyles);
   const set = (patch: Partial<QuotationFilterState>) => onChange({ ...value, ...patch });
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <SheetModal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="Close" />
         <View style={styles.sheet}>
@@ -49,7 +50,7 @@ export function QuotationFilterSheet({ visible, value, onChange, onClose }: {
           </View>
         </View>
       </KeyboardAvoidingView>
-    </Modal>
+    </SheetModal>
   );
 }
 

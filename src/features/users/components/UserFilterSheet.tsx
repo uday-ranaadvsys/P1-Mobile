@@ -1,5 +1,6 @@
 import { LIST_FILTER } from 'floman-shared/constants';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { SheetModal } from '@/components/SheetModal';
 import { Text } from '@/components/AppText';
 import { Button } from '@/components/Button';
 import { PickerField } from '@/components/PickerField';
@@ -26,7 +27,7 @@ export function UserFilterSheet({ visible, value, roles, departments, onChange, 
   const set = (patch: Partial<UserFilterState>) => onChange({ ...value, ...patch });
   const all = { value: LIST_FILTER.ALL, label: 'All' };
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <SheetModal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="Close" />
         <View style={styles.sheet}>
@@ -41,7 +42,7 @@ export function UserFilterSheet({ visible, value, roles, departments, onChange, 
           </View>
         </View>
       </KeyboardAvoidingView>
-    </Modal>
+    </SheetModal>
   );
 }
 

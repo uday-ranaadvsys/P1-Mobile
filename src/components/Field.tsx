@@ -13,10 +13,12 @@ type FieldProps = TextInputProps & {
   error?: string | null;
   /** A sign before the text, such as ₹. */
   prefix?: string;
+  /** A sign after the text, such as a unit (Nos) or %. */
+  suffix?: string;
 };
 
 /** A labelled input with an error line. The box is 48 pt tall (44 minimum). */
-export function Field({ label, secure, required, error, prefix, ...input }: FieldProps) {
+export function Field({ label, secure, required, error, prefix, suffix, ...input }: FieldProps) {
   const styles = useThemed(makeStyles);
   const colors = useColors();
   const [shown, setShown] = useState(false);
@@ -37,6 +39,7 @@ export function Field({ label, secure, required, error, prefix, ...input }: Fiel
           placeholderTextColor={colors.placeholder}
           accessibilityLabel={label}
         />
+        {suffix ? <Text style={styles.suffix}>{suffix}</Text> : null}
         {secure ? (
           <Pressable onPress={() => setShown((s) => !s)} hitSlop={8} accessibilityRole="button" accessibilityLabel={shown ? 'Hide password' : 'Show password'}>
             <Text style={styles.toggle}>{shown ? 'Hide' : 'Show'}</Text>
@@ -56,6 +59,7 @@ const makeStyles = (c: Colors) =>
       borderColor: c.outline, borderRadius: radius, paddingHorizontal: spacing.md, minHeight: 48,
     },
     prefix: { ...type.body, color: c.muted, marginRight: spacing.xs },
+    suffix: { ...type.subhead, fontWeight: '600', color: c.muted, marginLeft: spacing.xs },
     input: { flex: 1, paddingVertical: 12, ...type.body, color: c.ink, fontFamily: 'Inter_400Regular' },
     toggle: { ...type.subhead, fontWeight: '600', color: c.brandText },
     error: { ...type.footnote },

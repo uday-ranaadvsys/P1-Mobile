@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { AUDIT_ACTION_LABELS } from 'floman-shared/constants';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { SheetModal } from '@/components/SheetModal';
 import { Text } from '@/components/AppText';
 import { Button } from '@/components/Button';
 import { ErrorText } from '@/components/Text';
@@ -22,7 +23,7 @@ export function RoleHistorySheet({ role, onClose }: { role: { id: string; name: 
   const { data, isLoading, error } = useQuery({ queryKey: ['roles', 'history', role?.id], queryFn: () => getRoleHistory(role!.id), enabled: role !== null });
 
   return (
-    <Modal visible={role !== null} transparent animationType="slide" onRequestClose={onClose}>
+    <SheetModal visible={role !== null} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.root}>
         <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="Close" />
         <View style={styles.sheet}>
@@ -46,7 +47,7 @@ export function RoleHistorySheet({ role, onClose }: { role: { id: string; name: 
           <Button title="Close" tone="secondary" onPress={onClose} />
         </View>
       </View>
-    </Modal>
+    </SheetModal>
   );
 }
 

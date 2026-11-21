@@ -124,7 +124,24 @@ export type TextTemplate = { id: string; title?: string | null; name?: string | 
 
 export const listTextTemplates = (kind: 'notes' | 'terms', documentType: string) => api<TextTemplate[]>(`/templates/${kind}${query({ documentType })}`);
 
-export type CustomFieldDefinition ={ id: string; fieldKey: string; displayLabel: string; fieldType: string; isConfidential: boolean; sortOrder: number };
+export type CustomFieldDefinition = {
+  id: string;
+  fieldKey: string;
+  displayLabel: string;
+  fieldType: string;
+  isConfidential: boolean;
+  sortOrder: number;
+  isRequired?: boolean;
+  defaultValue?: string | null;
+  maxLength?: number | null;
+  dropdownOptions?: string[] | null;
+};
+
+/** What a save sends (server: CreateQuotationSchema). Built in features/quotations/form.ts. */
+export type QuotationPayload = Record<string, unknown>;
+
+/** Saves a new Quotation: as a draft, for approval, or approved (the payload's status). */
+export const createQuotation = (body: QuotationPayload) => api<Quotation>('/quotations', { method: 'POST', body });
 
 /** The company's own fields for a kind of document (GET /custom-fields). */
 export const listCustomFields = (documentType: string) => api<CustomFieldDefinition[]>(`/custom-fields?documentType=${documentType}`);

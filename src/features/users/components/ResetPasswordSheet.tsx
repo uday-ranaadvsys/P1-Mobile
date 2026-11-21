@@ -1,6 +1,7 @@
 import { MIN_PASSWORD_LENGTH } from 'floman-shared/constants';
 import { useEffect, useState } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { SheetModal } from '@/components/SheetModal';
 import { Text } from '@/components/AppText';
 import { Button } from '@/components/Button';
 import { Field } from '@/components/Field';
@@ -39,7 +40,7 @@ export function ResetPasswordSheet({ user, onDone, onClose }: { user: AppUser | 
   };
 
   return (
-    <Modal visible={user !== null} transparent animationType="slide" onRequestClose={onClose}>
+    <SheetModal visible={user !== null} transparent animationType="slide" onRequestClose={onClose}>
       <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <Pressable style={styles.backdrop} onPress={busy ? undefined : onClose} accessibilityLabel="Close" />
         <View style={styles.sheet}>
@@ -55,7 +56,7 @@ export function ResetPasswordSheet({ user, onDone, onClose }: { user: AppUser | 
           </View>
         </View>
       </KeyboardAvoidingView>
-    </Modal>
+    </SheetModal>
   );
 }
 

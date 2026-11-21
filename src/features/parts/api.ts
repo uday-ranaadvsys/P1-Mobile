@@ -1,7 +1,7 @@
 import { api, apiWithMessage, type Meta } from '@/api/client';
 
 export type PartGroup = { id: string; name: string };
-export type TaxRate = { id: number; percentage: number | string };
+export type TaxRate = { id: number; percentage: number | string; isDefault?: boolean };
 export type Uom = { id?: number; code: string; name?: string | null; description?: string | null };
 
 /** A part (server: Part). The price fields only come for those who may see prices. */

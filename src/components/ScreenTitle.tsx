@@ -9,14 +9,14 @@ import { spacing, type, useColors, useThemed, type Colors } from '@/theme';
  * The top of a screen inside a tab: a back link that names where you came from ("‹ Masters"), the title in large
  * type, and an optional control at the right (refresh, add). The tab's own top bar stays above it.
  */
-export function ScreenTitle({ back, title, right }: { back?: string; title?: string; right?: ReactNode }) {
+export function ScreenTitle({ back, onBack, title, right }: { back?: string; onBack?: () => void; title?: string; right?: ReactNode }) {
   const styles = useThemed(makeStyles);
   const colors = useColors();
   const router = useRouter();
   return (
     <View style={styles.wrap}>
       {back ? (
-        <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel={`Back to ${back}`} style={({ pressed }) => [styles.back, pressed && { opacity: 0.5 }]}>
+        <Pressable onPress={onBack ?? (() => router.back())} accessibilityRole="button" accessibilityLabel={`Back to ${back}`} style={({ pressed }) => [styles.back, pressed && { opacity: 0.5 }]}>
           <Ionicons name="chevron-back" size={18} color={colors.muted} />
           <Text style={styles.backText}>{back}</Text>
         </Pressable>

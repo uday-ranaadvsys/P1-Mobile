@@ -1,5 +1,6 @@
 import { LIST_FILTER, PART_TYPE } from 'floman-shared/constants';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { SheetModal } from '@/components/SheetModal';
 import { Text } from '@/components/AppText';
 import { Button } from '@/components/Button';
 import { OptionPills } from '@/components/FormParts';
@@ -38,7 +39,7 @@ export function PartFilterSheet({ visible, value, groups, onChange, onClose }: {
   const set = (patch: Partial<PartFilterState>) => onChange({ ...value, ...patch });
   const groupOptions = [{ value: LIST_FILTER.ALL, label: 'All' }, ...groups.map((g) => ({ value: g.id, label: g.name }))];
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <SheetModal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="Close" />
         <View style={styles.sheet}>
@@ -60,7 +61,7 @@ export function PartFilterSheet({ visible, value, groups, onChange, onClose }: {
           </View>
         </View>
       </KeyboardAvoidingView>
-    </Modal>
+    </SheetModal>
   );
 }
 

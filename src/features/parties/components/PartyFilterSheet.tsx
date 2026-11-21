@@ -1,6 +1,7 @@
 import { LIST_FILTER, PARTY_GST } from 'floman-shared/constants';
 import { GST_STATES } from 'floman-shared/gst';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { SheetModal } from '@/components/SheetModal';
 import { Text } from '@/components/AppText';
 import { Button } from '@/components/Button';
 import { OptionPills } from '@/components/FormParts';
@@ -39,7 +40,7 @@ export function PartyFilterSheet({ visible, value, onChange, onClose }: {
   const styles = useThemed(makeStyles);
   const set = (patch: Partial<PartyFilterState>) => onChange({ ...value, ...patch });
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <SheetModal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="Close" />
         <View style={styles.sheet}>
@@ -61,7 +62,7 @@ export function PartyFilterSheet({ visible, value, onChange, onClose }: {
           </View>
         </View>
       </KeyboardAvoidingView>
-    </Modal>
+    </SheetModal>
   );
 }
 

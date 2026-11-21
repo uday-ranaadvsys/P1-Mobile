@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { SheetModal } from '@/components/SheetModal';
 import { Text } from '@/components/AppText';
 import { Button } from '@/components/Button';
 import { ErrorText } from '@/components/Text';
@@ -13,7 +14,7 @@ export function ReturnSheet({ visible, title, busy, error, onClose, onSend }: {
   const styles = useThemed(makeStyles);
   const [remarks, setRemarks] = useState('');
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <SheetModal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <Pressable style={styles.backdrop} onPress={busy ? undefined : onClose} />
         <View style={styles.sheet}>
@@ -24,7 +25,7 @@ export function ReturnSheet({ visible, title, busy, error, onClose, onSend }: {
           <Button title="Cancel" tone="secondary" onPress={onClose} disabled={busy} />
         </View>
       </KeyboardAvoidingView>
-    </Modal>
+    </SheetModal>
   );
 }
 

@@ -1,4 +1,5 @@
-import { Modal, Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { SheetModal } from '@/components/SheetModal';
 import { Text } from '@/components/AppText';
 import { spacing, type, useColors, useThemed, type Colors } from '@/theme';
 
@@ -12,7 +13,7 @@ export function ActionSheet({ visible, title, actions, onClose }: { visible: boo
   const styles = useThemed(makeStyles);
   const colors = useColors();
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <SheetModal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.root}>
         <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="Close" />
         <View style={styles.sheet}>
@@ -35,7 +36,7 @@ export function ActionSheet({ visible, title, actions, onClose }: { visible: boo
           </Pressable>
         </View>
       </View>
-    </Modal>
+    </SheetModal>
   );
 }
 

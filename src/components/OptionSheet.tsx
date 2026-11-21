@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { FlatList, KeyboardAvoidingView, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { SheetModal } from '@/components/SheetModal';
 import { Text } from '@/components/AppText';
 import { radius, spacing, type, useColors, useThemed, type Colors } from '@/theme';
 
@@ -24,7 +25,7 @@ export function OptionSheet({ visible, title, options, value, onSelect, onClose,
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={close}>
+    <SheetModal visible={visible} transparent animationType="slide" onRequestClose={close}>
       <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <Pressable style={styles.backdrop} onPress={close} accessibilityLabel="Close" />
         <View style={styles.sheet}>
@@ -70,7 +71,7 @@ export function OptionSheet({ visible, title, options, value, onSelect, onClose,
           />
         </View>
       </KeyboardAvoidingView>
-    </Modal>
+    </SheetModal>
   );
 }
 
