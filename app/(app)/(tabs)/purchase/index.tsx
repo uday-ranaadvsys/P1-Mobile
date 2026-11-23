@@ -17,13 +17,13 @@ type Row = {
 
 /** The web's Purchase menu, in its order, each row only for those who may open it. A screen not built yet opens "Coming soon". */
 const ROWS: Row[] = [
-  { title: 'Indents', icon: 'clipboard-outline', permission: PERMISSIONS.INDENTS.READ },
-  { title: 'Manage Indents', icon: 'list-outline', permission: [PERMISSIONS.INDENTS.READ, PERMISSIONS.PURCHASE_INDENTS.CREATE, PERMISSIONS.PURCHASE_ORDERS.CREATE] },
-  { title: 'Purchase Indents', icon: 'checkmark-done-outline', permission: PERMISSIONS.PURCHASE_INDENTS.READ },
+  { title: 'Indents', icon: 'clipboard-outline', permission: PERMISSIONS.INDENTS.READ, href: '/purchase/indents' },
+  { title: 'Manage Indents', icon: 'list-outline', permission: [PERMISSIONS.INDENTS.READ, PERMISSIONS.PURCHASE_INDENTS.CREATE, PERMISSIONS.PURCHASE_ORDERS.CREATE], href: '/purchase/manage-indents' },
+  { title: 'Purchase Indents', icon: 'checkmark-done-outline', permission: PERMISSIONS.PURCHASE_INDENTS.READ, href: '/purchase/purchase-indents' },
   { title: 'Purchase Orders', icon: 'receipt-outline', permission: PERMISSIONS.PURCHASE_ORDERS.READ, href: '/purchase/purchase-orders' },
-  { title: 'Purchases', icon: 'bag-outline', permission: PERMISSIONS.PURCHASES.READ },
-  { title: 'GRN', icon: 'cube-outline', permission: PERMISSIONS.GRNS.READ },
-  { title: 'Debit Notes', icon: 'return-up-forward-outline', permission: PERMISSIONS.DEBIT_NOTES.READ },
+  { title: 'Purchases', icon: 'bag-outline', permission: PERMISSIONS.PURCHASES.READ, href: '/purchase/purchases' },
+  { title: 'GRN', icon: 'cube-outline', permission: PERMISSIONS.GRNS.READ, href: '/purchase/grns' },
+  { title: 'Debit Notes', icon: 'return-up-forward-outline', permission: PERMISSIONS.DEBIT_NOTES.READ, href: '/purchase/debit-notes' },
 ];
 
 export default function Purchase() {

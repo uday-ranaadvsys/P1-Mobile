@@ -101,6 +101,17 @@ export type FormLine = {
   lineId: string | null;
   /** What the approver said about this line when returning the Quotation. */
   approverRemarks: string | null;
+  /**
+   * GRN lines only. A line of the PO / Purchase it receives against has a tick (on this GRN, or offered and left out);
+   * a typed-in line has none. `poItemId` / `purchaseItemId`: the order line it is. `heldBy`: drafts holding quantity of it.
+   */
+  selected?: boolean;
+  poItemId?: string | null;
+  purchaseItemId?: string | null;
+  heldBy?: { qty: number; number: string }[];
+  /** Purchase lines only: the Purchase Indent shares a saved line holds, kept as they are when it is edited. */
+  indentRef?: string | null;
+  indentAllocations?: { indentItemId: string; allocatedQty: number }[] | null;
 };
 
 let lineCounter = 0;

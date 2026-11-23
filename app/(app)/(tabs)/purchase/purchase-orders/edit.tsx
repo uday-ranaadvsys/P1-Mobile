@@ -11,6 +11,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { Button } from '@/components/Button';
 import { ErrorBanner, NoticeBanner } from '@/components/FormParts';
+import { EDIT_FOLDS, NEW_FOLDS, useFolds, useItemsSummary } from '@/components/FoldCard';
 import { FormScrollProvider, useFormScroll } from '@/components/FormScroll';
 import { Centered } from '@/components/Screen';
 import { ScreenTitle } from '@/components/ScreenTitle';
@@ -30,8 +31,9 @@ import { ItemsSection } from '@/features/quotations/components/ItemsSection';
 import { SummaryCard } from '@/features/quotations/components/SummaryCard';
 import { newLine, priced, type FormLine } from '@/features/quotations/form';
 import { personName } from '@/features/quotations/text';
-import { DeductionCard } from '@/features/tax/DeductionCard';
+import { DeductionCard, useDeductionSummary } from '@/features/tax/DeductionCard';
 import { useDocumentDeductions } from '@/features/tax/useDocumentDeductions';
+import { lineFromPicked, madeFromIndents, useIndentHandoff } from '@/features/indents/pickedLines';
 import { notify } from '@/lib/notify';
 import { spacing, useColors, useThemed, type Colors } from '@/theme';
 
@@ -48,10 +50,12 @@ const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
  * asks first.
  */
 export default function PurchaseOrderForm() {
-  const { id, duplicateFrom } = useLocalSearchParams<{ id?: string; duplicateFrom?: string }>();
+  const { id, duplicateFrom, fromIndents } = useLocalSearchParams<{ id?: string; duplicateFrom?: string; fromIndents?: string }>();
   const editing = Boolean(id);
   const duplicating = !id && Boolean(duplicateFrom);
   const sourceId = id ?? duplicateFrom;
+  // Opened from Manage Indents: the picked lines come with it (taken once).
+  const handoff = useIndentHandoff(Boolean(fromIndents) && !id && !duplicateFrom);
   const router = useRouter();
   const navigation = useNavigation() as unknown as {
     addListener: (type: 'beforeRemove', listener: (e: { preventDefault: () => void; data: { action: unknown } }) => void) => () => void;
@@ -62,9 +66,11 @@ export default function PurchaseOrderForm() {
   const colors = useColors();
   const { can } = useSession();
   const form = useFormScroll();
+  // A new document starts at its vendor; an edit starts with every section folded.
+  const folds = useFolds(editing ? EDIT_FOLDS : NEW_FOLDS);
 
-  const [header, setHeader] = useState<PurchaseOrderHeader>(newHeader);
-  const [lines, setLines] = useState<FormLine[]>(() => [newLine()]);
+  const [header, setHeader] = useState<PurchaseOrderHeader>(() => ({ ...newHeader(), ...(handoff?.neededAt ? { billingLocationId: handoff.neededAt, shippingLocationId: handoff.neededAt } : {}) }));
+  const [lines, setLines] = useState<FormLine[]>(() => (handoff ? handoff.lines.map(lineFromPicked) : [newLine()]));
   const [extraDiscount, setExtraDiscount] = useState('');
   const [isRoundOff, setIsRoundOff] = useState(true);
   const [errors, setErrors] = useState<HeaderErrors>({});
@@ -142,6 +148,8 @@ export default function PurchaseOrderForm() {
   }, [series.data]);
 
   const totals = documentTotalsWithDeductions(lines.map((l) => priced(l, false)), Number(extraDiscount) || 0, isRoundOff, deductions.picks, deductions.history);
+  const itemsSummary = useItemsSummary(lines.filter((l) => l.partName.trim()).length, totals.grandTotal);
+  const taxSummary = useDeductionSummary(deductions, totals.deductions);
 
   // ── Leaving with changes asks first (the series chosen by default is not a change) ──
   const snapshot = JSON.stringify({ header: { ...header, party: header.party?.id, seriesId: null }, lines, extraDiscount, isRoundOff, deduction: [deductions.ticked, deductions.sectionIds] });
@@ -240,10 +248,11 @@ export default function PurchaseOrderForm() {
     const customKey = head.custom ? Object.keys(head.custom)[0] : undefined;
     const anchor = head.party ? 'party' : lineFail ? `line:${lineFail.key}` : deductions.missingMessage ? null : head.orderDate ? 'orderDate' : customKey ? `custom:${customKey}` : null;
     if (anchor) {
-      form.scrollTo(anchor);
+      folds.reveal(anchor, form.scrollTo);
       return;
     }
     if (deductions.missingMessage) {
+      folds.show('tax');
       setBanner(deductions.missingMessage);
       form.toTop();
       return;
@@ -298,12 +307,17 @@ export default function PurchaseOrderForm() {
         {duplicating && po ? (
           <NoticeBanner title={`Cloned from PO: ${po.poNumber}`} body={chosenSeries ? `New draft created with sequential series: ${chosenSeries.nextNumber}` : null} />
         ) : null}
+        {handoff ? <NoticeBanner title={madeFromIndents(handoff)} /> : null}
         <ErrorBanner message={banner} />
 
         <HeaderSection
           value={header}
           onChange={change}
           errors={errors}
+          folds={folds}
+          itemsSummary={itemsSummary}
+          taxCard={<DeductionCard embedded deductions={deductions} values={totals.values} amounts={totals.deductions} />}
+          taxSummary={taxSummary}
           vendorLock={vendorLock}
           billingLocked={numbered}
           footer={
@@ -318,10 +332,10 @@ export default function PurchaseOrderForm() {
             }}
             supplyType={SUPPLY_TYPE.B2B}
             problem={problem}
+            hideTitle
             back="Purchase Order"
-            applyPart={(line, part, fallbackRate) => withPurchasePart(line, part, fallbackRate, unregistered)}
+            applyPart={(line, part, fallbackRate) => ({ ...withPurchasePart(line, part, fallbackRate, unregistered), indentRef: line.indentRef, indentAllocations: line.indentAllocations })}
           />
-          <DeductionCard deductions={deductions} values={totals.values} amounts={totals.deductions} />
         </HeaderSection>
       </ScrollView>
       </FormScrollProvider>

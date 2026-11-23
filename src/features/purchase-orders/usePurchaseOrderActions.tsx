@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { DOCUMENT_EDIT_TEXT, INDENT_LINES_ON_CANCEL, type IndentLinesOnCancel } from 'floman-shared/constants';
 import { PERMISSIONS } from 'floman-shared/permissions';
-import { PO_STATUS, SPEND_PO_STATUSES } from 'floman-shared/statuses';
+import { PO_STATUS, RECEIVABLE_PO_STATUSES, SPEND_PO_STATUSES } from 'floman-shared/statuses';
 import { useState } from 'react';
 import { Alert, Pressable } from 'react-native';
 import { Text } from '@/components/AppText';
@@ -47,6 +47,7 @@ export function usePurchaseOrderActions(options: { onHistory?: (po: PurchaseOrde
   const canUpdate = can(PERMISSIONS.PURCHASE_ORDERS.UPDATE);
   // The server lets only someone who may approve cancel an order.
   const canCancel = can(PERMISSIONS.PURCHASE_ORDERS.APPROVE);
+  const canCreateGrn = can(PERMISSIONS.GRNS.CREATE);
 
   const changed = (id: string) => {
     void queryClient.invalidateQueries({ queryKey: ['purchase-orders'] });
@@ -118,6 +119,10 @@ export function usePurchaseOrderActions(options: { onHistory?: (po: PurchaseOrde
       list.push({ label: 'Duplicate', onPress: () => router.push({ pathname: '/purchase/purchase-orders/edit', params: { duplicateFrom: po.id } }) });
     }
     list.push({ label: 'Share PDF', onPress: () => void share(po) });
+    // Approved and not fully received: goods still to come (the web's Create GRN).
+    if (canCreateGrn && RECEIVABLE_PO_STATUSES.includes(po.status)) {
+      list.push({ label: 'Create GRN', onPress: () => router.push({ pathname: '/purchase/grns/edit', params: { fromPo: po.id } }) });
+    }
     list.push({
       label: 'View history',
       onPress: () => (options.onHistory ? options.onHistory(po) : router.push({ pathname: '/purchase/purchase-orders/[id]', params: { id: po.id, tab: 'history' } })),

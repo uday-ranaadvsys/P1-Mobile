@@ -14,7 +14,14 @@
       "expo-splash-screen",
       "expo-font",
       "@react-native-community/datetimepicker",
-      "expo-sharing"
+      "expo-sharing",
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "floman uses the camera to photograph a vendor's bill or a challan and attach it to the document.",
+          "photosPermission": "floman uses your photos to attach a vendor's bill or a challan to the document."
+        }
+      ]
     ],
     "ios": {
       "supportsTablet": false

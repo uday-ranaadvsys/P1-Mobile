@@ -15,6 +15,11 @@ const tabIcon = (name: IconName) => ({ color, size }: { color: unknown; size: nu
 
 /** What the red + adds on each screen of the More, Sales and Purchase tabs: where it goes, who may, and what it is called. */
 const ADDS = [
+  { prefix: '/purchase/debit-notes', href: '/purchase/debit-notes/edit', permission: PERMISSIONS.DEBIT_NOTES.CREATE, label: 'New debit note' },
+  { prefix: '/purchase/purchase-indents', href: '/purchase/purchase-indents/edit', permission: PERMISSIONS.PURCHASE_INDENTS.CREATE, label: 'New purchase indent' },
+  { prefix: '/purchase/indents', href: '/purchase/indents/edit', permission: PERMISSIONS.INDENTS.CREATE, label: 'New indent' },
+  { prefix: '/purchase/purchases', href: '/purchase/purchases/edit', permission: PERMISSIONS.PURCHASES.CREATE, label: 'New purchase' },
+  { prefix: '/purchase/grns', href: '/purchase/grns/edit', permission: PERMISSIONS.GRNS.CREATE, label: 'New GRN' },
   { prefix: '/purchase/purchase-orders', href: '/purchase/purchase-orders/edit', permission: PERMISSIONS.PURCHASE_ORDERS.CREATE, label: 'New purchase order' },
   { prefix: '/sales/quotations', href: '/sales/quotations/edit', permission: PERMISSIONS.QUOTATIONS.CREATE, label: 'New quotation' },
   { prefix: '/more/parties', href: '/more/parties/edit', permission: PERMISSIONS.VENDORS.CREATE, label: 'New vendor or customer' },

@@ -23,10 +23,12 @@ type Totals = {
  * The web's Summary: taxable amount, GST, the extra discount (a % typed here), TCS when ticked, the round-off switch,
  * the total discount and the grand total. The figures come from floman-shared, the server's own calculation.
  */
-export function SummaryCard({ totals, exempt, extraDiscount, onExtraDiscount, isRoundOff, onRoundOff, purchase }: {
+export function SummaryCard({ totals, exempt, extraDiscount, onExtraDiscount, isRoundOff, onRoundOff, purchase, givenBack }: {
   totals: Totals; exempt: boolean; extraDiscount: string; onExtraDiscount: (v: string) => void; isRoundOff: boolean; onRoundOff: (v: boolean) => void;
   /** A purchase document: the TDS kept back and "Amount to pay" show after the grand total. */
   purchase?: boolean;
+  /** A Credit / Debit Note: the TDS it gives back, and the net credit / debit (its own words). */
+  givenBack?: boolean;
 }) {
   const styles = useThemed(makeStyles);
   const colors = useColors();
@@ -75,9 +77,9 @@ export function SummaryCard({ totals, exempt, extraDiscount, onExtraDiscount, is
         </View>
         {keptBack.length > 0 ? (
           <>
-            {keptBack.map(([kind, worked]) => row(DEDUCTION_TEXT.lessLine(DEDUCTION_KIND_LABEL[kind], worked.rate), `-${money(worked.amount)}`))}
+            {keptBack.map(([kind, worked]) => row(givenBack ? DEDUCTION_TEXT.givenBackLine(DEDUCTION_KIND_LABEL[kind], worked.rate) : DEDUCTION_TEXT.lessLine(DEDUCTION_KIND_LABEL[kind], worked.rate), `-${money(worked.amount)}`))}
             <View style={styles.row}>
-              <Text style={[styles.muted, { fontWeight: '700' }]}>{purchase ? DEDUCTION_TEXT.AMOUNT_TO_PAY : DEDUCTION_TEXT.AMOUNT_TO_RECEIVE}</Text>
+              <Text style={[styles.muted, { fontWeight: '700' }]}>{givenBack ? (purchase ? DEDUCTION_TEXT.NET_DEBIT : DEDUCTION_TEXT.NET_CREDIT) : purchase ? DEDUCTION_TEXT.AMOUNT_TO_PAY : DEDUCTION_TEXT.AMOUNT_TO_RECEIVE}</Text>
               <Text style={styles.netValue}>{money(totals.netDue ?? totals.grandTotal)}</Text>
             </View>
           </>

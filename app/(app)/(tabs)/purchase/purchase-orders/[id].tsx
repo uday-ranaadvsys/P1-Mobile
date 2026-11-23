@@ -5,7 +5,7 @@ import { DEDUCTION_KIND, DEDUCTION_KIND_LABEL, DEDUCTION_TEXT, DISCOUNT_TYPE, TO
 import { DOCUMENT_TYPE } from 'floman-shared/documentTypes';
 import { gstinOrUnregistered } from 'floman-shared/gst';
 import { PERMISSIONS } from 'floman-shared/permissions';
-import { PO_STATUS } from 'floman-shared/statuses';
+import { PO_STATUS, RECEIVABLE_PO_STATUSES } from 'floman-shared/statuses';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '@/components/AppText';
@@ -159,6 +159,10 @@ export default function PurchaseOrderDetail() {
             <Text style={styles.nextTitle}>{nextStep.title}</Text>
             {nextStep.body ? <Text style={styles.sub}>{nextStep.body}</Text> : null}
           </View>
+        ) : null}
+
+        {can(PERMISSIONS.GRNS.CREATE) && RECEIVABLE_PO_STATUSES.includes(po.status) ? (
+          <Button title="Create GRN" onPress={() => router.push({ pathname: '/purchase/grns/edit', params: { fromPo: po.id } })} />
         ) : null}
 
         <Button title="Share PDF" tone="secondary" onPress={() => void actions.share(po)} busy={actions.sharing} />

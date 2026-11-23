@@ -38,7 +38,7 @@ export type PurchaseOrderHeader = {
   customFields: Record<string, unknown>;
 };
 
-export type HeaderErrors = Partial<Record<'party' | 'orderDate', string>> & { custom?: Record<string, string> };
+export type HeaderErrors = Partial<Record<'party' | 'orderDate' | 'expectedDeliveryDate', string>> & { custom?: Record<string, string> };
 
 /** A new Purchase Order: today, nothing else chosen yet. */
 export function newHeader(): PurchaseOrderHeader {
@@ -139,6 +139,9 @@ const linePayload = (l: FormLine) => ({
   discount: num(l.discount),
   discountType: l.discountType,
   taxRate: l.taxRate,
+  // Lines made from Indents (Manage Indents) carry their shares; an edit that sends none keeps the saved ones.
+  ...(l.indentRef ? { indentRef: l.indentRef } : {}),
+  ...(l.indentAllocations?.length ? { indentAllocations: l.indentAllocations.map((a) => ({ indentItemId: a.indentItemId, allocatedQty: Number(a.allocatedQty) })) } : {}),
 });
 
 /** Everything a save sends (the web's payload), for the status chosen: Draft, Submit for approval or Approve. */

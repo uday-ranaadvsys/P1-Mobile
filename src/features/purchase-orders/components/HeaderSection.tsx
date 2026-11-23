@@ -6,6 +6,7 @@ import { View } from 'react-native';
 import { DateField } from '@/components/DateField';
 import { ScrollAnchor } from '@/components/FormScroll';
 import { Field } from '@/components/Field';
+import { FoldCard, type Folds } from '@/components/FoldCard';
 import { FormCard, ReadOnlyField, SectionHeader } from '@/components/FormParts';
 import { PickerField } from '@/components/PickerField';
 import { useSession } from '@/features/auth/session';
@@ -16,6 +17,7 @@ import { ProjectFields } from '@/features/documents/components/ProjectFields';
 import { useCustomFieldDefs } from '@/features/documents/useCustomFieldDefs';
 import { PartyField } from '@/features/parties/components/PartyField';
 import { billingAddresses, defaultShipToId, deliveryAddresses, PRIMARY, placeChoice } from '@/features/parties/places';
+import { formatDate } from '@/lib/format';
 import { useHide } from '@/lib/privacy';
 import { dueInDays, dueText, type HeaderErrors, type PurchaseOrderHeader } from '../form';
 
@@ -25,17 +27,26 @@ import { dueInDays, dueText, type HeaderErrors, type PurchaseOrderHeader } from 
  * notes and terms. `onChange` takes the changed fields only. The items and the TDS / TCS card go in `children`, the
  * Summary in `footer`.
  */
-export function HeaderSection({ value, onChange, errors, children, footer, vendorLock, billingLocked }: {
+export function HeaderSection({ value, onChange, errors, children, footer, vendorLock, billingLocked, folds, itemsSummary, taxCard, taxSummary, documentType = DOCUMENT_TYPE.PURCHASE_ORDER, docName = 'Purchase Order', isPurchaseIndent }: {
   value: PurchaseOrderHeader; onChange: (patch: Partial<PurchaseOrderHeader>) => void; errors: HeaderErrors; children?: ReactNode; footer?: ReactNode;
+  /** Which sections are open; the Items' one-line summary while they are folded. */
+  folds: Folds; itemsSummary: string;
+  /** The TDS / TCS card: a folding section of its own after the Items, with its one-line summary. */
+  taxCard?: ReactNode;
+  taxSummary?: string;
   /** Why the vendor can't be changed (a GRN was made from the order, or it came from a Purchase Indent); none = it can. */
   vendorLock?: string | null;
   /** Bill to is fixed once the order has its number (the number is that place's series). */
   billingLocked?: boolean;
+  /** The document this is the top of: a Purchase Order (default) or a Purchase Indent (no vendor quote; the expected delivery is required). */
+  documentType?: string;
+  docName?: string;
+  isPurchaseIndent?: boolean;
 }) {
   const hide = useHide();
   const { can } = useSession();
   const { party } = value;
-  const { fields: customFields } = useCustomFieldDefs(DOCUMENT_TYPE.PURCHASE_ORDER);
+  const { fields: customFields } = useCustomFieldDefs(documentType);
   // As the web: an Admin (all permissions) lists vendors and customers, everyone else only vendors.
   const listType = can(PERMISSIONS.ALL) ? undefined : PARTY_TYPE.VENDOR;
 
@@ -53,13 +64,11 @@ export function HeaderSection({ value, onChange, errors, children, footer, vendo
   return (
     <>
       <OurPlacesCard side="purchase" billingLocationId={value.billingLocationId} shippingLocationId={value.shippingLocationId} billingLocked={billingLocked} onChange={onChange} />
-      <View>
-        <SectionHeader>Vendor & dates</SectionHeader>
-        <FormCard>
+      <FoldCard title="Vendor & dates" summary={[party && hide.text(party.name), value.orderDate && formatDate(value.orderDate)].filter(Boolean).join(' · ') || 'Not filled in yet'} open={folds.open.vendor} onToggle={() => folds.toggle('vendor')}>
           <PartyField
             label="Vendor"
             kind={PARTY_TYPE.VENDOR}
-            back="Purchase Order"
+            back={docName}
             party={party}
             error={errors.party}
             lock={vendorLock}
@@ -96,21 +105,37 @@ export function HeaderSection({ value, onChange, errors, children, footer, vendo
             onChange={(deliveryDueDate) => onChange({ deliveryDueDate })}
             onClear={() => onChange({ deliveryDueDate: '' })}
           />
-          <DateField label="Expected delivery" value={value.expectedDeliveryDate} onChange={(expectedDeliveryDate) => onChange({ expectedDeliveryDate })} onClear={() => onChange({ expectedDeliveryDate: '' })} />
-          <Field label="Vendor quote" value={value.supplierQuote} onChangeText={(supplierQuote) => onChange({ supplierQuote })} placeholder="e.g. QUOTE-2026-889" />
+          <ScrollAnchor name="expectedDeliveryDate">
+            <DateField
+              label="Expected delivery"
+              required={isPurchaseIndent}
+              value={value.expectedDeliveryDate}
+              onChange={(expectedDeliveryDate) => onChange({ expectedDeliveryDate })}
+              onClear={isPurchaseIndent ? undefined : () => onChange({ expectedDeliveryDate: '' })}
+              error={errors.expectedDeliveryDate}
+            />
+          </ScrollAnchor>
+          {isPurchaseIndent ? null : <Field label="Vendor quote" value={value.supplierQuote} onChangeText={(supplierQuote) => onChange({ supplierQuote })} placeholder="e.g. QUOTE-2026-889" />}
           <Field label="Payment terms" required value={value.paymentTerms} onChangeText={(paymentTerms) => onChange({ paymentTerms })} placeholder="e.g. Net 30 Days" maxLength={255} autoCapitalize="sentences" />
 
           <ProjectFields value={value} onChange={onChange} />
 
           <CustomFieldsForm fields={customFields} values={value.customFields} onChange={(key, v) => onChange({ customFields: { ...value.customFields, [key]: v } })} errors={errors.custom} />
-        </FormCard>
-      </View>
+      </FoldCard>
 
       {/* The Items and the TDS / TCS card go here, between Vendor & dates and Notes & terms, as on the web. */}
-      {children}
+      <FoldCard title="Items" summary={itemsSummary} open={folds.open.items} onToggle={() => folds.toggle('items')}>
+        {children}
+      </FoldCard>
+      {taxCard ? (
+        <FoldCard title="TDS / TCS" summary={taxSummary} open={folds.open.tax} onToggle={() => folds.toggle('tax')}>
+          {taxCard}
+        </FoldCard>
+      ) : null}
 
       <NotesTermsSection
-        documentType={DOCUMENT_TYPE.PURCHASE_ORDER}
+        fold={{ open: folds.open.notes, onToggle: () => folds.toggle('notes') }}
+        documentType={documentType}
         notes={value.notes}
         terms={value.terms}
         notesPlaceholder="Enter production instructions or dispatch notes"

@@ -11,6 +11,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { Button } from '@/components/Button';
 import { ErrorBanner, NoticeBanner } from '@/components/FormParts';
+import { EDIT_FOLDS, NEW_FOLDS, useFolds, useItemsSummary } from '@/components/FoldCard';
 import { FormScrollProvider, useFormScroll } from '@/components/FormScroll';
 import { Centered } from '@/components/Screen';
 import { ScreenTitle } from '@/components/ScreenTitle';
@@ -28,7 +29,7 @@ import { personName } from '@/features/quotations/text';
 import { useCustomFieldDefs } from '@/features/documents/useCustomFieldDefs';
 import { liveMadeFrom } from '@/features/quotations/useQuotationActions';
 import { useDocumentSeries } from '@/features/documents/useDocumentSeries';
-import { DeductionCard } from '@/features/tax/DeductionCard';
+import { DeductionCard, useDeductionSummary } from '@/features/tax/DeductionCard';
 import { useDocumentDeductions } from '@/features/tax/useDocumentDeductions';
 import { notify } from '@/lib/notify';
 import { spacing, useColors, useThemed, type Colors } from '@/theme';
@@ -64,6 +65,8 @@ export default function QuotationForm() {
   const colors = useColors();
   const { can } = useSession();
   const form = useFormScroll();
+  // A new document starts at its vendor; an edit starts with every section folded.
+  const folds = useFolds(editing ? EDIT_FOLDS : NEW_FOLDS);
 
   const [header, setHeader] = useState<QuotationHeader>(newHeader);
   const [lines, setLines] = useState<FormLine[]>(() => [newLine()]);
@@ -138,6 +141,8 @@ export default function QuotationForm() {
 
   const exempt = isZeroRatedSupply(header.supplyType);
   const totals = documentTotalsWithDeductions(lines.map((l) => priced(l, exempt)), Number(extraDiscount) || 0, isRoundOff, deductions.picks, deductions.history);
+  const itemsSummary = useItemsSummary(lines.filter((l) => l.partName.trim()).length, totals.grandTotal);
+  const taxSummary = useDeductionSummary(deductions, totals.deductions);
 
   // ── Leaving with changes asks first (the series chosen by default is not a change) ──
   const snapshot = JSON.stringify({ header: { ...header, party: header.party?.id, seriesId: null }, lines, extraDiscount, isRoundOff, deduction: [deductions.ticked, deductions.sectionIds] });
@@ -227,12 +232,13 @@ export default function QuotationForm() {
     const customKey = head.custom ? Object.keys(head.custom)[0] : undefined;
     const anchor = head.party ? 'party' : head.issueDate ? 'issueDate' : head.validityDate ? 'validityDate' : customKey ? `custom:${customKey}` : lineFail ? `line:${lineFail.key}` : null;
     if (anchor) {
-      form.scrollTo(anchor);
+      folds.reveal(anchor, form.scrollTo);
       return;
     }
     const noField =
       (!editing && !header.seriesId ? 'Document numbering series is not configured for Quotations. Please configure it first.' : undefined) ?? deductions.missingMessage ?? undefined;
     if (noField) {
+      folds.show('tax');
       setBanner(noField);
       form.toTop();
       return;
@@ -292,6 +298,10 @@ export default function QuotationForm() {
           value={header}
           onChange={change}
           errors={errors}
+          folds={folds}
+          itemsSummary={itemsSummary}
+          taxCard={<DeductionCard embedded deductions={deductions} values={totals.values} amounts={totals.deductions} />}
+          taxSummary={taxSummary}
           customerLock={madeFrom.length ? DOCUMENT_EDIT_TEXT.partyLockedBy('customer', madeFrom) : null}
           billingLocked={numbered}
           footer={
@@ -306,8 +316,8 @@ export default function QuotationForm() {
             }}
             supplyType={header.supplyType}
             problem={problem}
+            hideTitle
           />
-          <DeductionCard deductions={deductions} values={totals.values} amounts={totals.deductions} />
         </HeaderSection>
       </ScrollView>
       </FormScrollProvider>

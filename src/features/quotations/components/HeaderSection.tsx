@@ -6,6 +6,7 @@ import { View } from 'react-native';
 import { DateField } from '@/components/DateField';
 import { ScrollAnchor } from '@/components/FormScroll';
 import { Field } from '@/components/Field';
+import { FoldCard, type Folds } from '@/components/FoldCard';
 import { FormCard, ReadOnlyField, SectionHeader } from '@/components/FormParts';
 import { PickerField } from '@/components/PickerField';
 import { CustomFieldsForm } from '@/features/documents/components/CustomFieldsForm';
@@ -14,6 +15,7 @@ import { OurPlacesCard } from '@/features/documents/components/OurPlacesCard';
 import { ProjectFields } from '@/features/documents/components/ProjectFields';
 import { useCustomFieldDefs } from '@/features/documents/useCustomFieldDefs';
 import { PartyField } from '@/features/parties/components/PartyField';
+import { formatDate } from '@/lib/format';
 import { useHide } from '@/lib/privacy';
 import { billingAddresses, defaultShipToId, deliveryAddresses, PRIMARY, placeChoice, validForDays, type HeaderErrors, type QuotationHeader } from '../form';
 
@@ -25,8 +27,13 @@ const SUPPLY_OPTIONS = [SUPPLY_TYPE.B2B, SUPPLY_TYPE.SEZWOP, SUPPLY_TYPE.SEZWP].
  * the customer and where it is billed and shipped, our own places, the dates, the supply type, the custom fields, and
  * the notes and terms. `onChange` takes the changed fields only.
  */
-export function HeaderSection({ value, onChange, errors, children, footer, customerLock, billingLocked }: {
+export function HeaderSection({ value, onChange, errors, children, footer, customerLock, billingLocked, folds, itemsSummary, taxCard, taxSummary }: {
   value: QuotationHeader; onChange: (patch: Partial<QuotationHeader>) => void; errors: HeaderErrors; children?: ReactNode; footer?: ReactNode;
+  /** Which sections are open; the Items' one-line summary while they are folded. */
+  folds: Folds; itemsSummary: string;
+  /** The TDS / TCS card: a folding section of its own after the Items, with its one-line summary. */
+  taxCard?: ReactNode;
+  taxSummary?: string;
   /** Why the customer can't be changed (documents were made from this Quotation); none = it can. */
   customerLock?: string | null;
   /** Bill from is fixed once the Quotation has its number (the number is that place's series). */
@@ -50,9 +57,7 @@ export function HeaderSection({ value, onChange, errors, children, footer, custo
   return (
     <>
       <OurPlacesCard side="sales" billingLocationId={value.billingLocationId} shippingLocationId={value.shippingLocationId} billingLocked={billingLocked} onChange={onChange} />
-      <View>
-        <SectionHeader>Customer & dates</SectionHeader>
-        <FormCard>
+      <FoldCard title="Customer & dates" summary={[party && hide.text(party.name), value.issueDate && formatDate(value.issueDate)].filter(Boolean).join(' · ') || 'Not filled in yet'} open={folds.open.vendor} onToggle={() => folds.toggle('vendor')}>
           <PartyField
             label="Customer"
             kind={PARTY_TYPE.CUSTOMER}
@@ -99,13 +104,20 @@ export function HeaderSection({ value, onChange, errors, children, footer, custo
           <ProjectFields value={value} onChange={onChange} />
 
           <CustomFieldsForm fields={customFields} values={value.customFields} onChange={(key, v) => onChange({ customFields: { ...value.customFields, [key]: v } })} errors={errors.custom} />
-        </FormCard>
-      </View>
+      </FoldCard>
 
       {/* The Items and the TDS / TCS card go here, between Customer & dates and Notes & terms, as on the web. */}
-      {children}
+      <FoldCard title="Items" summary={itemsSummary} open={folds.open.items} onToggle={() => folds.toggle('items')}>
+        {children}
+      </FoldCard>
+      {taxCard ? (
+        <FoldCard title="TDS / TCS" summary={taxSummary} open={folds.open.tax} onToggle={() => folds.toggle('tax')}>
+          {taxCard}
+        </FoldCard>
+      ) : null}
 
       <NotesTermsSection
+        fold={{ open: folds.open.notes, onToggle: () => folds.toggle('notes') }}
         documentType={DOCUMENT_TYPE.QUOTATION}
         notes={value.notes}
         terms={value.terms}

@@ -1,6 +1,7 @@
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '@/components/AppText';
+import { FieldLink } from '@/components/FieldLink';
 import { formatDate } from '@/lib/format';
 import { radius, spacing, type, useColors, useThemed, type Colors } from '@/theme';
 
@@ -23,10 +24,14 @@ export function DateField({ label, value, onChange, onClear, required, error }: 
 
   return (
     <View style={{ gap: spacing.xs }}>
-      <Text style={styles.label}>
-        {label}
-        {required ? <Text style={{ color: colors.danger }}> *</Text> : null}
-      </Text>
+      <View style={styles.labelRow}>
+        <Text style={styles.label}>
+          {label}
+          {required ? <Text style={{ color: colors.danger }}> *</Text> : null}
+        </Text>
+        {/* At the top right of the field, level with its label (as "Edit customer"). */}
+        {value && onClear ? <FieldLink label="Clear" onPress={onClear} /> : null}
+      </View>
       {Platform.OS === 'ios' ? (
         <View style={[styles.box, error ? { borderColor: colors.danger } : null]}>
           <DateTimePicker value={date} mode="date" display="compact" onChange={(_, picked) => picked && onChange(toISODate(picked))} />
@@ -41,11 +46,6 @@ export function DateField({ label, value, onChange, onClear, required, error }: 
           <Text style={[styles.value, !value && { color: colors.placeholder }]}>{value ? formatDate(value) : 'Choose a date'}</Text>
         </Pressable>
       )}
-      {value && onClear ? (
-        <Pressable onPress={onClear} accessibilityRole="button" accessibilityLabel={`Clear ${label}`} style={styles.clear}>
-          <Text style={[styles.clearText, { color: colors.brandText }]}>Clear</Text>
-        </Pressable>
-      ) : null}
       {error ? <Text style={[styles.error, { color: colors.danger }]}>{error}</Text> : null}
     </View>
   );
@@ -57,6 +57,5 @@ const makeStyles = (c: Colors) =>
     box: { minHeight: 48, justifyContent: 'center', backgroundColor: c.surface, borderWidth: 1, borderColor: c.outline, borderRadius: radius, paddingHorizontal: spacing.md },
     value: { ...type.body, color: c.ink },
     error: { ...type.footnote },
-    clear: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' },
-    clearText: { ...type.subhead, fontWeight: '600' },
+    labelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
   });

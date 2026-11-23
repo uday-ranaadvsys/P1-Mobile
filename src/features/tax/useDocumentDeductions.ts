@@ -23,13 +23,15 @@ const useSections = () => useQuery({ queryKey: ['tax-sections'], queryFn: () => 
  * floman-shared/taxDeduction (the server's own calculation) and sends only `payload()`: the sections picked.
  * `kinds`: the boxes this document has (a Quotation, Proforma and Sales Order: TCS only).
  */
-export function useDocumentDeductions(options: { kinds: readonly DeductionKind[]; vendorId?: string | null; date?: string | null; excludeId?: string | null; side?: DeductionSide }) {
-  const { kinds, vendorId, date, excludeId, side = DEDUCTION_SIDE.SALES } = options;
+export function useDocumentDeductions(options: { kinds: readonly DeductionKind[]; vendorId?: string | null; date?: string | null; excludeId?: string | null; side?: DeductionSide; typedTcs?: boolean }) {
+  const { kinds, vendorId, date, excludeId, side = DEDUCTION_SIDE.SALES, typedTcs = false } = options;
   const sectionsQuery = useSections();
   const sections = useMemo(() => sectionsQuery.data ?? [], [sectionsQuery.data]);
   const [ticked, setTicked] = useState(OFF);
   const [sectionIds, setSectionIds] = useState(NONE);
   const [includeEarlierTds, setIncludeEarlierTds] = useState(false);
+  // A GRN's TCS as typed from the vendor's bill (null: worked out).
+  const [tcsTyped, setTcsTyped] = useState<number | null>(null);
 
   const byId = useMemo(() => new Map(sections.map((s) => [s.id, s])), [sections]);
   const sectionsFor = useCallback((kind: DeductionKind) => sections.filter((s) => s.kind === kind && (s.isActive || s.id === sectionIds[kind])), [sections, sectionIds]);
@@ -39,34 +41,40 @@ export function useDocumentDeductions(options: { kinds: readonly DeductionKind[]
     setTicked((prev) => ({ ...prev, [kind]: on, ...(on && kind === DEDUCTION_KIND.TDS && { TCS: false }), ...(on && kind === DEDUCTION_KIND.TCS && { TDS: false }) }));
     setSectionIds((prev) => ({ ...prev, ...(!on && { [kind]: null }), ...(on && kind === DEDUCTION_KIND.TDS && { TCS: null }), ...(on && kind === DEDUCTION_KIND.TCS && { TDS: null }) }));
     if (kind === DEDUCTION_KIND.TDS || (on && kind === DEDUCTION_KIND.TCS)) setIncludeEarlierTds(false);
+    if (kind === DEDUCTION_KIND.TCS || (on && kind === DEDUCTION_KIND.TDS)) setTcsTyped(null);
   }, []);
 
   const pick = useCallback((kind: DeductionKind, sectionId: string | null) => {
     setSectionIds((prev) => ({ ...prev, [kind]: sectionId }));
     setTicked((prev) => ({ ...prev, [kind]: true }));
     if (kind === DEDUCTION_KIND.TDS) setIncludeEarlierTds(false);
+    if (kind === DEDUCTION_KIND.TCS) setTcsTyped(null);
   }, []);
 
-  /** The boxes as a saved or source document has them (edit, duplicate). */
+  /**
+   * The boxes as a saved or source document has them (edit, duplicate, made from another). `ownTcs`: the document's own
+   * saved TCS amount is kept as typed (editing a GRN); from a PO or Purchase it is worked out again.
+   */
   const loadFrom = useCallback(
-    (doc: Record<string, unknown> | null | undefined) => {
+    (doc: Record<string, unknown> | null | undefined, ownTcs = false) => {
       const ids = { ...NONE };
       for (const kind of kinds) ids[kind] = (doc?.[PAYLOAD_FIELD[kind]] as string | null | undefined) || null;
       setSectionIds(ids);
       setTicked({ TCS: Boolean(ids.TCS), GST_TDS: Boolean(ids.GST_TDS), TDS: Boolean(ids.TDS) });
       setIncludeEarlierTds(Number(doc?.incomeTdsEarlierAmount) > 0);
+      setTcsTyped(typedTcs && ownTcs && ids.TCS ? Number(doc?.tcsAmount) || 0 : null);
     },
-    [kinds],
+    [kinds, typedTcs],
   );
 
   const picks: DeductionPicks = useMemo(() => {
     const out: DeductionPicks = {};
     for (const kind of kinds) {
       const section = sectionIds[kind] ? byId.get(sectionIds[kind]!) : undefined;
-      if (ticked[kind] && section) out[kind] = { section, includeEarlier: kind === DEDUCTION_KIND.TDS && includeEarlierTds, amount: null };
+      if (ticked[kind] && section) out[kind] = { section, includeEarlier: kind === DEDUCTION_KIND.TDS && includeEarlierTds, amount: kind === DEDUCTION_KIND.TCS ? tcsTyped : null };
     }
     return out;
-  }, [kinds, sectionIds, ticked, byId, includeEarlierTds]);
+  }, [kinds, sectionIds, ticked, byId, includeEarlierTds, tcsTyped]);
 
   // The party's bills this year, only when a ticked section's limit needs them.
   const needsHistory = Object.values(picks).some((p) => p && p.section.thresholdKind !== THRESHOLD_KIND.NONE && p.section.thresholdKind !== THRESHOLD_KIND.PER_BILL);
@@ -86,10 +94,11 @@ export function useDocumentDeductions(options: { kinds: readonly DeductionKind[]
     const out: Record<string, unknown> = {};
     for (const kind of kinds) out[PAYLOAD_FIELD[kind]] = ticked[kind] ? sectionIds[kind] : null;
     if (kinds.includes(DEDUCTION_KIND.TDS)) out.includeEarlierTds = Boolean(ticked.TDS && includeEarlierTds);
+    if (typedTcs) out.tcsAmount = ticked.TCS ? tcsTyped : null;
     return out;
-  }, [kinds, ticked, sectionIds, includeEarlierTds]);
+  }, [kinds, ticked, sectionIds, includeEarlierTds, typedTcs, tcsTyped]);
 
-  return { kinds, side, sections, sectionsFor, byId, ticked, sectionIds, includeEarlierTds, setIncludeEarlierTds, toggle, pick, loadFrom, picks, history, missingPick, missingMessage, payload };
+  return { kinds, side, typedTcs, tcsTyped, setTcsTyped, sections, sectionsFor, byId, ticked, sectionIds, includeEarlierTds, setIncludeEarlierTds, toggle, pick, loadFrom, picks, history, missingPick, missingMessage, payload };
 }
 
 export type DocumentDeductions = ReturnType<typeof useDocumentDeductions>;

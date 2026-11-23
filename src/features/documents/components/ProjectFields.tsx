@@ -5,10 +5,10 @@ import { Text } from '@/components/AppText';
 import { Field } from '@/components/Field';
 import { spacing, type, useColors, useThemed, type Colors } from '@/theme';
 
-type Project = { projectName: string; projectCode: string; clientName: string };
+type Project = { projectName: string; projectCode: string; clientName?: string };
 
 /** "Project details (optional)": folded away until wanted, and open by itself when one of them is filled in. */
-export function ProjectFields({ value, onChange }: { value: Project; onChange: (patch: Partial<Project>) => void }) {
+export function ProjectFields({ value, onChange, client = true }: { value: Project; onChange: (patch: Partial<Project>) => void; /** The Client / Principal box (an Indent has none). */ client?: boolean }) {
   const styles = useThemed(makeStyles);
   const colors = useColors();
   const [open, setOpen] = useState(false);
@@ -25,7 +25,9 @@ export function ProjectFields({ value, onChange }: { value: Project; onChange: (
         <>
           <Field label="Project name" value={value.projectName} onChangeText={(projectName) => onChange({ projectName })} placeholder="e.g. 50MW Solar Substation Package" autoCapitalize="words" />
           <Field label="Project code" value={value.projectCode} onChangeText={(projectCode) => onChange({ projectCode })} placeholder="PRJ-2026-084" autoCapitalize="characters" />
-          <Field label="Client / Principal" value={value.clientName} onChangeText={(clientName) => onChange({ clientName })} placeholder="e.g. NTPC / L&T Ltd" autoCapitalize="words" />
+          {client ? (
+  <Field label="Client / Principal" value={value.clientName} onChangeText={(clientName) => onChange({ clientName })} placeholder="e.g. NTPC / L&T Ltd" autoCapitalize="words" />
+          ) : null}
         </>
       ) : null}
     </>

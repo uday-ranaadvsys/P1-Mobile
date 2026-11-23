@@ -1,11 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { DISCOUNT_TYPE, SYSTEM_DEFAULTS } from 'floman-shared/constants';
+import { DISCOUNT_TYPE, QUANTITY_TEXT, SYSTEM_DEFAULTS } from 'floman-shared/constants';
 import { isZeroRatedSupply } from 'floman-shared/gst';
 import { PERMISSIONS } from 'floman-shared/permissions';
 import { itemAmounts } from 'floman-shared/documentTotals';
 import { qtyTextAllowed } from 'floman-shared/quantity';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '@/components/AppText';
 import { Button } from '@/components/Button';
@@ -37,12 +37,16 @@ const DISCOUNT_OPTIONS = [
  * and free quantity in the part's unit, the rate before and with GST (typing one works out the other), the discount in
  * % or ₹, the GST rate, and the line's amount. SEZ with LUT charges no GST, so each line shows 0%.
  */
-export function ItemsSection({ lines, onChange, supplyType, problem, back = 'Quotation', applyPart = withPart }: {
+export function ItemsSection({ lines, onChange, supplyType, problem, hideTitle, back = 'Quotation', applyPart = withPart, indent }: {
   lines: FormLine[]; onChange: (lines: FormLine[]) => void; supplyType: string; problem: { key: string; message: string } | null;
+  /** The form shows its own "Items" header (a folding section): no title here. */
+  hideTitle?: boolean;
   /** The document this is part of, for the part form's back link. */
   back?: string;
   /** What a picked (or just saved) part brings to a line: a Quotation's selling price, a Purchase Order's rate and HSN. */
   applyPart?: (line: FormLine, part: Part, fallbackRate: number) => FormLine;
+  /** An Indent's lines: quantity and an estimated rate only (no GST, discount or free quantity). */
+  indent?: boolean;
 }) {
   const styles = useThemed(makeStyles);
   const colors = useColors();
@@ -57,7 +61,7 @@ export function ItemsSection({ lines, onChange, supplyType, problem, back = 'Quo
 
   const meta = useQuery({ queryKey: ['part-meta'], queryFn: getPartMeta });
   const rates = meta.data?.taxRates ?? [];
-  const exempt = isZeroRatedSupply(supplyType);
+  const exempt = Boolean(indent) || isZeroRatedSupply(supplyType);
   // A part with no GST rate of its own takes the company's default rate (the web: the flagged one, else the first, else 18).
   const fallbackRate = Number(rates.find((r) => r.isDefault)?.percentage ?? rates[0]?.percentage ?? SYSTEM_DEFAULTS.DEFAULT_TAX_RATE);
   const rateOptions = (current: number) => {
@@ -65,38 +69,86 @@ export function ItemsSection({ lines, onChange, supplyType, problem, back = 'Quo
     return list.map((r) => ({ value: String(r), label: `${r}%` }));
   };
 
+  // A finished line folds into one row; one still being filled in stays open. Each line's state is fixed the first
+  // time it is seen (so a line does not fold while it is being typed), then follows the taps.
+  const finished = (l: FormLine) => Boolean(l.partName.trim()) && Number(l.qty) > 0 && Boolean(l.uom.trim());
+  const openState = useRef<Record<string, boolean>>({});
+  const [, redraw] = useState(0);
+  for (const l of lines) if (openState.current[l.key] === undefined) openState.current[l.key] = !finished(l);
+  // A line with a mistake shows it open.
+  if (problem) openState.current[problem.key] = true;
+  const toggleLine = (key: string) => {
+    openState.current[key] = !openState.current[key];
+    redraw((n) => n + 1);
+  };
   const update = (key: string, change: (line: FormLine) => FormLine) => onChange(lines.map((l) => (l.key === key ? change(l) : l)));
   const money = (value: number) => (hide.hidden ? hide.rupees(0) : formatMoney(value));
 
   return (
     <View>
-      <SectionHeader>Items</SectionHeader>
+      {hideTitle ? null : <SectionHeader>Items</SectionHeader>}
       <View style={{ gap: spacing.md }}>
         {lines.map((line, index) => {
           const a = itemAmounts(priced(line, exempt));
           const failed = problem?.key === line.key ? problem.message : null;
           const showRate = exempt ? 0 : line.taxRate;
-          return (
-            <ScrollAnchor key={line.key} name={`line:${line.key}`}>
-            <FormCard>
-              <View style={styles.lineHead}>
-                <Text style={styles.lineTitle}>Item {index + 1}</Text>
-                <View style={styles.lineActions}>
-                  {line.partName ? (
-                    <Pressable onPress={() => update(line.key, () => ({ ...newLine(), key: line.key }))} accessibilityRole="button" hitSlop={8} style={styles.textButton}>
-                      <Text style={[styles.textButtonText, { color: colors.brandText }]}>Clear</Text>
+          if (!openState.current[line.key]) {
+            // Folded: the part, what comes in and what it comes to; a ticked order line keeps its tick.
+            return (
+              <ScrollAnchor key={line.key} name={`line:${line.key}`}>
+                <View style={[styles.foldRow, line.selected === false && { opacity: 0.45 }]}>
+                  {line.selected !== undefined ? (
+                    <Pressable
+                      onPress={() => update(line.key, (l) => ({ ...l, selected: !l.selected }))}
+                      accessibilityRole="checkbox"
+                      accessibilityState={{ checked: line.selected }}
+                      accessibilityLabel={line.selected ? 'Received in this GRN' : 'Not received now (stays open on the order)'}
+                      hitSlop={6}
+                      style={styles.foldTick}
+                    >
+                      <Ionicons name={line.selected ? 'checkbox' : 'square-outline'} size={26} color={line.selected ? colors.brandText : colors.muted} />
                     </Pressable>
                   ) : null}
-                  <Pressable
-                    onPress={() => onChange(lines.filter((l) => l.key !== line.key))}
-                    disabled={lines.length <= 1}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Remove item ${index + 1}`}
-                    hitSlop={8}
-                    style={[styles.iconButton, lines.length <= 1 && { opacity: 0.3 }]}
-                  >
-                    <Ionicons name="close" size={22} color={colors.muted} />
+                  <Pressable onPress={() => toggleLine(line.key)} accessibilityRole="button" accessibilityState={{ expanded: false }} accessibilityLabel={`Item ${index + 1}: ${line.partName}, folded`} style={styles.foldMain}>
+                    <View style={{ flex: 1, gap: 2 }}>
+                      <Text style={styles.lineTitle} numberOfLines={1}>{index + 1}. {line.partName}</Text>
+                      <Text style={styles.small} numberOfLines={1}>
+                        {line.qty} {line.uom} × {hide.hidden ? hide.rupees(0) : formatMoney(Number(line.rate) || 0)}{indent ? '' : ` · GST ${showRate}%`}
+                      </Text>
+                    </View>
+                    <Text style={styles.amountTotal}>{money(a.totalWithTax)}</Text>
+                    <Ionicons name="chevron-down" size={20} color={colors.muted} />
                   </Pressable>
+                </View>
+              </ScrollAnchor>
+            );
+          }
+          return (
+            <ScrollAnchor key={line.key} name={`line:${line.key}`}>
+            <View style={line.selected === false ? { opacity: 0.45 } : undefined}>
+            <FormCard>
+              <View style={styles.lineHead}>
+                {line.selected !== undefined ? (
+                  // A line of the order this GRN receives against: ticked = received in this one; unticked = stays open on the order.
+                  <Pressable
+                    onPress={() => update(line.key, (l) => ({ ...l, selected: !l.selected }))}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: line.selected }}
+                    accessibilityLabel={line.selected ? 'Received in this GRN' : 'Not received now (stays open on the order)'}
+                    style={styles.tick}
+                  >
+                    <Ionicons name={line.selected ? 'checkbox' : 'square-outline'} size={26} color={line.selected ? colors.brandText : colors.muted} />
+                    <Text style={styles.lineTitle}>Item {index + 1}</Text>
+                  </Pressable>
+                ) : (
+                  <Text style={styles.lineTitle}>Item {index + 1}</Text>
+                )}
+                <View style={styles.lineActions}>
+                  {finished(line) ? (
+                    <Pressable onPress={() => toggleLine(line.key)} accessibilityRole="button" accessibilityLabel={`Fold item ${index + 1}`} hitSlop={8} style={styles.iconButton}>
+                      <Ionicons name="chevron-up" size={22} color={colors.muted} />
+                    </Pressable>
+                  ) : null}
                 </View>
               </View>
 
@@ -139,7 +191,12 @@ export function ItemsSection({ lines, onChange, supplyType, problem, back = 'Quo
                     keyboardType="decimal-pad"
                     suffix={line.uom || 'UOM'}
                   />
+                  {/* Drafts holding this order line: "1 on draft GRN-22" */}
+                  {line.heldBy?.map((h) => (
+                    <Text key={h.number} style={[styles.small, { color: colors.warnText }]}>{QUANTITY_TEXT.heldBy(h.qty, h.number)}</Text>
+                  ))}
                 </View>
+                {indent ? null : (
                 <View style={{ flex: 1 }}>
                   <Field
                     label="Free qty"
@@ -150,17 +207,22 @@ export function ItemsSection({ lines, onChange, supplyType, problem, back = 'Quo
                     suffix={line.uom || 'UOM'}
                   />
                 </View>
+                )}
               </View>
 
               <View style={styles.pair}>
                 <View style={{ flex: 1 }}>
-                  <Field label="Rate" prefix="₹" value={line.rate} onChangeText={(v) => update(line.key, (l) => withRate(l, decimal(v)))} placeholder="0.00" keyboardType="decimal-pad" />
+                  <Field label={indent ? 'Estimated rate' : 'Rate'} prefix="₹" value={line.rate} onChangeText={(v) => update(line.key, (l) => withRate(l, decimal(v)))} placeholder="0.00" keyboardType="decimal-pad" />
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Field label="Rate incl. GST" prefix="₹" value={line.rateWithTax} onChangeText={(v) => update(line.key, (l) => withRateWithTax(l, decimal(v)))} placeholder="0.00" keyboardType="decimal-pad" />
-                </View>
+                {indent ? null : (
+                  <View style={{ flex: 1 }}>
+                    <Field label="Rate incl. GST" prefix="₹" value={line.rateWithTax} onChangeText={(v) => update(line.key, (l) => withRateWithTax(l, decimal(v)))} placeholder="0.00" keyboardType="decimal-pad" />
+                  </View>
+                )}
               </View>
 
+              {indent ? null : (
+                <>
               <View style={styles.discountRow}>
                 <View style={{ flex: 1 }}>
                   <Field
@@ -191,6 +253,8 @@ export function ItemsSection({ lines, onChange, supplyType, problem, back = 'Quo
               ) : (
                 <PickerField label="GST" value={String(line.taxRate)} options={rateOptions(line.taxRate)} onChange={(r) => update(line.key, (l) => withTaxRate(l, Number(r)))} />
               )}
+                </>
+              )}
 
               <Pressable onPress={() => update(line.key, (l) => ({ ...l, showSpecs: !l.showSpecs }))} accessibilityRole="button" accessibilityState={{ expanded: line.showSpecs }} style={styles.toggle}>
                 <Ionicons name={line.showSpecs ? 'chevron-up' : 'add'} size={18} color={colors.ink} />
@@ -198,22 +262,26 @@ export function ItemsSection({ lines, onChange, supplyType, problem, back = 'Quo
                 {line.scope && !line.showSpecs ? <View style={styles.dot} /> : null}
               </Pressable>
               {line.showSpecs ? (
-                <Field label="Scope of work / specifications" value={line.scope} onChangeText={(scope) => update(line.key, (l) => ({ ...l, scope }))} placeholder="Scope of work, technical specifications…" multiline autoCapitalize="sentences" />
+                <Field label={indent ? 'Specifications / notes' : 'Scope of work / specifications'} value={line.scope} onChangeText={(scope) => update(line.key, (l) => ({ ...l, scope }))} placeholder={indent ? 'Technical specs, approved brands, machine ID, or purpose…' : 'Scope of work, technical specifications…'} multiline autoCapitalize="sentences" />
               ) : null}
 
               <View style={styles.amount}>
                 <View style={styles.amountRow}>
-                  <Text style={styles.amountLabel}>Amount</Text>
+                  <Text style={styles.amountLabel}>{indent ? 'Estimated amount' : 'Amount'}</Text>
                   <Text style={styles.amountTotal}>{money(a.totalWithTax)}</Text>
                 </View>
+                {indent ? null : (
                 <View style={styles.amountRow}>
                   <Text style={styles.small}>Taxable</Text>
                   <Text style={styles.small}>{money(a.taxableAmount)}</Text>
                 </View>
+                )}
+                {indent ? null : (
                 <View style={styles.amountRow}>
                   <Text style={styles.small}>GST {showRate}%</Text>
                   <Text style={styles.small}>+{money(a.taxAmount)}</Text>
                 </View>
+                )}
                 {a.discountAmount > 0 ? (
                   <View style={styles.amountRow}>
                     <Text style={styles.small}>Disc ({line.discountType === DISCOUNT_TYPE.AMOUNT ? '₹' : `${line.discount}%`})</Text>
@@ -221,7 +289,29 @@ export function ItemsSection({ lines, onChange, supplyType, problem, back = 'Quo
                   </View>
                 ) : null}
               </View>
+
+              {/* Clear the item's fields, or delete the item: at the bottom of its card. */}
+              <View style={styles.cardFooter}>
+                {line.partName ? (
+                  <Pressable onPress={() => update(line.key, () => ({ ...newLine(), key: line.key }))} accessibilityRole="button" accessibilityLabel={`Clear item ${index + 1}`} hitSlop={8} style={styles.textButton}>
+                    <Text style={[styles.textButtonText, { color: colors.brandText }]}>Clear</Text>
+                  </Pressable>
+                ) : (
+                  <View />
+                )}
+                <Pressable
+                  onPress={() => onChange(lines.filter((l) => l.key !== line.key))}
+                  disabled={lines.length <= 1}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Delete item ${index + 1}`}
+                  hitSlop={8}
+                  style={[styles.iconButton, lines.length <= 1 && { opacity: 0.3 }]}
+                >
+                  <Ionicons name="trash-outline" size={22} color={colors.danger} />
+                </Pressable>
+              </View>
             </FormCard>
+            </View>
             </ScrollAnchor>
           );
         })}
@@ -268,6 +358,11 @@ const makeStyles = (c: Colors) =>
   StyleSheet.create({
     lineHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 32 },
     lineTitle: { ...type.headline, color: c.ink },
+    foldRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, minHeight: 64, backgroundColor: c.surface, borderRadius: 16, borderWidth: 1, borderColor: c.outline, paddingLeft: spacing.md },
+    foldTick: { minWidth: 36, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+    foldMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minHeight: 64, paddingRight: spacing.md, paddingLeft: spacing.xs },
+    tick: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minHeight: 44 },
+    cardFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.divider, paddingTop: spacing.xs },
     lineActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
     textButton: { minHeight: 44, justifyContent: 'center' },
     textButtonText: { ...type.subhead, fontWeight: '600' },

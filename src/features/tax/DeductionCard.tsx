@@ -3,6 +3,7 @@ import { DEDUCTION_KIND, DEDUCTION_KIND_LABEL, DEDUCTION_KIND_ORDER, DEDUCTION_T
 import { sectionLabel, thresholdMessage, type DeductionAmount, type DocumentValues } from 'floman-shared/taxDeduction';
 import { Alert, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '@/components/AppText';
+import { Field } from '@/components/Field';
 import { PickerField } from '@/components/PickerField';
 import { SwitchRow } from '@/components/FormParts';
 import { formatINR } from '@/lib/format';
@@ -15,11 +16,26 @@ import type { DocumentDeductions } from './useDocumentDeductions';
  * (a Quotation: TCS only); a ticked box opens its section list, the rate the section sets, and the amount.
  * TDS and TCS untick each other. A limit shows its message under the row.
  */
-export function DeductionCard({ deductions, values, amounts }: { deductions: DocumentDeductions; values: DocumentValues; amounts: Record<DeductionKind, DeductionAmount | null> }) {
+/** The folded card's one line: what is ticked, at what rate and for how much ("TDS 2% · ₹960.00"), or "None". */
+export function useDeductionSummary(deductions: DocumentDeductions, amounts: Record<DeductionKind, DeductionAmount | null>) {
+  const hide = useHide();
+  const parts = DEDUCTION_KIND_ORDER.filter((kind) => deductions.kinds.includes(kind) && deductions.ticked[kind]).map((kind) => {
+    const section = deductions.sectionIds[kind] ? deductions.byId.get(deductions.sectionIds[kind]!) : undefined;
+    const worked = amounts[kind];
+    return [DEDUCTION_KIND_LABEL[kind], section ? `${section.rate}%` : null, worked ? (hide.hidden ? hide.rupees(0) : formatINR(worked.amount)) : null].filter(Boolean).join(' ');
+  });
+  return parts.length ? parts.join(' · ') : 'None';
+}
+
+export function DeductionCard({ deductions, values, amounts, embedded }: {
+  deductions: DocumentDeductions; values: DocumentValues; amounts: Record<DeductionKind, DeductionAmount | null>;
+  /** Inside a folding section that already has the title and the card: only a small "how it works" row on top. */
+  embedded?: boolean;
+}) {
   const styles = useThemed(makeStyles);
   const colors = useColors();
   const hide = useHide();
-  const { kinds, side, ticked, sectionIds, byId, sectionsFor, toggle, pick, history } = deductions;
+  const { kinds, side, typedTcs, tcsTyped, setTcsTyped, ticked, sectionIds, byId, sectionsFor, toggle, pick, history } = deductions;
   const order = DEDUCTION_KIND_ORDER.filter((kind) => kinds.includes(kind));
   const blockedBy = (kind: DeductionKind) => {
     const other = kind === DEDUCTION_KIND.TDS ? DEDUCTION_KIND.TCS : kind === DEDUCTION_KIND.TCS ? DEDUCTION_KIND.TDS : null;
@@ -27,9 +43,9 @@ export function DeductionCard({ deductions, values, amounts }: { deductions: Doc
   };
 
   return (
-    <View style={styles.card}>
+    <View style={embedded ? { gap: spacing.md } : styles.card}>
       <View style={styles.head}>
-        <Text style={styles.title}>{DEDUCTION_TEXT.CARD_TITLE}</Text>
+        <Text style={embedded ? styles.muted : styles.title}>{embedded ? 'How it works' : DEDUCTION_TEXT.CARD_TITLE}</Text>
         <Pressable
           onPress={() => Alert.alert(DEDUCTION_TEXT.CARD_TITLE, kinds.length === 1 ? DEDUCTION_TEXT.TCS_ONLY_HINT : DEDUCTION_TEXT.CARD_HINT)}
           hitSlop={10}
@@ -46,6 +62,8 @@ export function DeductionCard({ deductions, values, amounts }: { deductions: Doc
         const section = sectionIds[kind] ? byId.get(sectionIds[kind]!) ?? null : null;
         const worked = amounts[kind];
         const notice = ticked[kind] && section ? thresholdMessage(section, values, history, side) : null;
+        // A GRN's TCS: typed to match the vendor's bill (their rounding); the rate stays the section's.
+        const typeable = kind === DEDUCTION_KIND.TCS && typedTcs && Boolean(section);
         return (
           <View key={kind} style={{ gap: spacing.sm }}>
             <SwitchRow
@@ -65,10 +83,22 @@ export function DeductionCard({ deductions, values, amounts }: { deductions: Doc
                   onChange={(id) => pick(kind, id)}
                   searchable
                 />
-                <View style={styles.amountRow}>
-                  <Text style={styles.muted}>{section ? `${section.rate}%` : ''}</Text>
-                  <Text style={styles.amount}>{worked ? (hide.hidden ? hide.rupees(0) : formatINR(worked.amount)) : '—'}</Text>
-                </View>
+                {typeable ? (
+                  <Field
+                    label={DEDUCTION_TEXT.TCS_AS_ON_BILL}
+                    prefix="₹"
+                    suffix={section ? `${section.rate}%` : undefined}
+                    value={tcsTyped !== null ? String(tcsTyped) : worked ? String(worked.amount) : ''}
+                    onChangeText={(v) => setTcsTyped(v === '' ? null : Math.max(0, Math.round(Number(v.replace(/[^0-9]/g, '')) || 0)))}
+                    keyboardType="number-pad"
+                    placeholder="0"
+                  />
+                ) : (
+                  <View style={styles.amountRow}>
+                    <Text style={styles.muted}>{section ? `${section.rate}%` : ''}</Text>
+                    <Text style={styles.amount}>{worked ? (hide.hidden ? hide.rupees(0) : formatINR(worked.amount)) : '—'}</Text>
+                  </View>
+                )}
                 {notice ? (
                   <View style={styles.notice}>
                     <Ionicons name="information-circle" size={16} color={colors.warnText} />

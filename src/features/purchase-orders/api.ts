@@ -15,6 +15,9 @@ export type PurchaseOrderItem = {
   qty: number | string;
   freeQty?: number | string;
   receivedQty?: number | string | null;
+  /** Held by GRNs that are not cancelled yet (drafts too), and which ones. */
+  heldQty?: number | string | null;
+  heldBy?: { qty: number; number: string }[];
   uom: string;
   unitPrice: number | string;
   discount?: number | string | null;
@@ -118,7 +121,8 @@ export async function listPurchaseOrders(page: number, limit: number, f: Purchas
 }
 
 /** One Purchase Order with its lines, GRNs and history (GET /purchase-orders/:id). */
-export const getPurchaseOrder = (id: string) => api<PurchaseOrder>(`/purchase-orders/${id}`);
+/** `excludeGrn`: the GRN being edited, so its own quantity is not counted as held. */
+export const getPurchaseOrder = (id: string, excludeGrn?: string) => api<PurchaseOrder>(`/purchase-orders/${id}${excludeGrn ? `?excludeGrn=${excludeGrn}` : ''}`);
 
 /** What a save sends (the web's payload); the server works out every amount. */
 export type PurchaseOrderPayload = Record<string, unknown>;
