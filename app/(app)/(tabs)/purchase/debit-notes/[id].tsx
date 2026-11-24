@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { DISCOUNT_TYPE } from 'floman-shared/constants';
+import { DISCOUNT_TYPE, PAYMENT_TYPE } from 'floman-shared/constants';
+import { refundTextOf } from 'floman-shared/notes';
 import { gstinOrUnregistered } from 'floman-shared/gst';
 import { PERMISSIONS } from 'floman-shared/permissions';
 import { NOTE_STATUS } from 'floman-shared/statuses';
@@ -77,7 +78,7 @@ export default function DebitNoteDetail() {
       case NOTE_STATUS.RETURNED:
         return { title: 'Returned for changes', body: `${said(note.approvalRemarks)}${note.returnedAt ? `Returned on ${formatDate(note.returnedAt)}. ` : ''}Edit it and send it again.` };
       case NOTE_STATUS.APPROVED:
-        return { title: 'Approved', body: left > 0 ? `${money(left)} is still unused: it can be linked to a GRN or received back from the vendor on the web.` : 'Its whole amount is used.' };
+        return { title: 'Approved', body: left > 0 ? `${money(left)} is still unused: receive it back from the vendor with Refund from Vendor (linking it to another GRN is on the web for now).` : 'Its whole amount is used.' };
       case NOTE_STATUS.CANCELLED:
         return { title: 'Cancelled', body: `${said(note.cancellationReason)}${note.cancelledAt ? `Cancelled on ${formatDate(note.cancelledAt)}${note.cancelledBy ? ` by ${personName(note.cancelledBy)}` : ''}.` : ''}` };
       default:
@@ -132,6 +133,10 @@ export default function DebitNoteDetail() {
 
         {note.grn ? <Button title={`Open ${note.grn.grnNumber}`} tone="secondary" onPress={() => router.push({ pathname: '/purchase/grns/[id]', params: { id: note.grn!.id } })} /> : null}
         <Button title="Share PDF" tone="secondary" onPress={() => void actions.share(note)} busy={actions.sharing} />
+        {/* An approved note with an amount left: receive it back from the vendor (a refund, linked to this note). */}
+        {issued && left > 0 && can(PERMISSIONS.PAYMENTS.CREATE) ? (
+          <Button title={refundTextOf(PAYMENT_TYPE.RECEIPT)?.label ?? 'Refund from Vendor'} tone="receive" onPress={() => router.push({ pathname: '/ledger/payments/new', params: { type: PAYMENT_TYPE.RECEIPT, vendorId: note.vendorId, documentId: note.id, refund: '1' } })} />
+        ) : null}
         {editable ? <Button title="Edit" tone={reviewable ? 'secondary' : 'primary'} onPress={() => router.push({ pathname: '/purchase/debit-notes/edit', params: { id: note.id } })} /> : null}
         {editApproved && !actions.locked ? <Button title="Edit" tone="secondary" onPress={() => void actions.editApproved(note)} /> : null}
         {reviewable ? <Button title="Review" onPress={() => actions.review(note)} /> : null}

@@ -179,6 +179,11 @@ export default function GrnDetail() {
 
         <Button title="Share PDF" tone="secondary" onPress={() => void actions.share(grn)} busy={actions.sharing} />
 
+        {/* Money still due on an approved GRN: Pay opens with this bill ticked. */}
+        {can(PERMISSIONS.PAYMENTS.CREATE) && PAYABLE_GRN_STATUSES.includes(grn.status) && Number(grn.balanceAmount) > 0 && grn.vendorId ? (
+          <Button title="Pay" onPress={() => router.push({ pathname: '/ledger/payments/new', params: { type: 'PAYMENT', vendorId: grn.vendorId!, documentId: grn.id } })} />
+        ) : null}
+
         {can(PERMISSIONS.DEBIT_NOTES.CREATE) && PAYABLE_GRN_STATUSES.includes(grn.status) ? (
           <Button title="Create Debit Note" tone="secondary" onPress={() => router.push({ pathname: '/purchase/debit-notes/edit', params: { sourceId: grn.id } })} />
         ) : null}
